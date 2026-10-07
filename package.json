@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "tsc --noEmit && next lint && vitest run",
+    "deploy": "npm run check && npx --yes vercel@62 deploy",
+    "deploy:prod": "npm run check && npx --yes vercel@62 deploy --prod"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",
@@ -23,6 +26,8 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",

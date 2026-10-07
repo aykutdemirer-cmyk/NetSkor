@@ -1,0 +1,54 @@
+# NetSkor CI/CD: test -> Vercel deploy
+#
+# GitHub > Repo > Settings > Secrets and variables > Actions > "New repository secret" ile ekle:
+#   VERCEL_TOKEN       (zorunlu)   vercel.com/account/tokens > Create Token
+#   VERCEL_ORG_ID      (zorunlu)   `vercel link` sonrası .vercel/project.json içindeki "orgId"
+#   VERCEL_PROJECT_ID  (zorunlu)   aynı dosyadaki "projectId"
+#   SERPAPI_KEY        (opsiyonel) yorum/fiyat araması; yoksa uygulama demo veriyle çalışır.
+#                                  Kalıcı çözüm: anahtarı Vercel Project > Settings > Environment Variables'a gir.
+#
+# Davranış: main'e push => Production deploy; diğer dallar ve PR'lar => Preview deploy.
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check # tsc + next lint + vitest
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    # Fork PR'larında secret'lar yoktur; deploy atlanır
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write # vercel-action PR'a preview linki yorumlar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # SERPAPI_KEY secret'ı tanımlıysa runtime env olarak iletilir
+          vercel-args: >-
+            ${{ github.ref == 'refs/heads/main' && '--prod' || '' }}
+            ${{ secrets.SERPAPI_KEY && format('--env SERPAPI_KEY={0}', secrets.SERPAPI_KEY) || '' }}

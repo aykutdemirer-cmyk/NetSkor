@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "next build",
   "regions": ["fra1"],
   "functions": {
     "src/app/**/page.tsx": { "maxDuration": 30 },
