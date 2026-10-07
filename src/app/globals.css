@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { background: #070b14; color: #e2e8f0; }
+
+@keyframes scan { 0%,100% { top: 8%; } 50% { top: 88%; } }
+.animate-scan { animation: scan 2.4s ease-in-out infinite; }
