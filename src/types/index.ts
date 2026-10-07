@@ -53,6 +53,7 @@ export interface ProductAnalysis {
   pros: string[];
   cons: string[];
   inputs: ScoreInputs;
+  reviewMode?: "live" | "demo"; // demo: yorum/fiyat deterministik örnek veri
   estimated?: { reviews: boolean; value: boolean; ingredients: boolean }; // gerçek veri yoksa nötr değer kullanıldı
   noSting: number; // göz yakmama (0-100)
   reviews: Review[];

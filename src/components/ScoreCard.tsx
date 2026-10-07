@@ -37,7 +37,7 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
   const { product: p } = data;
   const score = calculateScore(p.category, data.inputs);
   const band = BAND[score.band];
-  const reviewPart = Math.round(data.inputs.reviewSatisfaction * (1 - (data.inputs.complaintRate ?? 0)));
+  const reviewPart = score.parts.find((x) => x.key === "reviews")!.score; // skor motoruyla aynı değer
 
   return (
     <section className="flex flex-col gap-5 rounded-3xl border border-slate-800 bg-slate-900/60 p-5">

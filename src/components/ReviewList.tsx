@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { BadgeCheck, Search, Star } from "lucide-react";
 import type { Review, ReviewSource } from "@/types";
+import { normTr as norm } from "@/lib/text";
 
 const SOURCES: { id: ReviewSource | "all"; label: string }[] = [
   { id: "all", label: "Tümü" },
@@ -12,9 +13,6 @@ const SOURCES: { id: ReviewSource | "all"; label: string }[] = [
   { id: "amazon_tr", label: "Amazon TR" },
 ];
 const SOURCE_LABEL = Object.fromEntries(SOURCES.map((s) => [s.id, s.label]));
-
-// TR karakterlerini normalize ederek ara ("pisik" -> "pişik")
-const norm = (s: string) => s.toLocaleLowerCase("tr").replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export default function ReviewList({ reviews }: { reviews: Review[] }) {
   const [source, setSource] = useState<ReviewSource | "all">("all");
