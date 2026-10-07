@@ -44,3 +44,14 @@ export interface ScoreBreakdown {
   band: ScoreBand;
   parts: { key: string; label: string; weight: number; score: number }[];
 }
+
+export interface ProductAnalysis {
+  product: Product;
+  emoji: string;
+  ageGroup: string;
+  audience: string[]; // "Kimler Kullanıyor?"
+  pros: string[];
+  cons: string[];
+  inputs: ScoreInputs;
+  reviews: Review[];
+}
