@@ -9,7 +9,16 @@ const BAND: Record<ScoreBand, { text: string; bg: string; ring: string; label: s
   red: { text: "text-red-400", bg: "bg-red-500", ring: "border-red-500", label: "Riskli" },
 };
 
-const Bar = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) => {
+const Bar = ({ icon, label, value, estimated }: { icon: React.ReactNode; label: string; value: number; estimated?: boolean }) => {
+  if (estimated)
+    return (
+      <div>
+        <div className="mb-1 flex justify-between text-sm text-slate-500">
+          <span className="flex items-center gap-2">{icon} {label}</span><span>Veri yok</span>
+        </div>
+        <div className="h-2 rounded-full bg-slate-800" />
+      </div>
+    );
   const b = BAND[value >= 90 ? "green" : value >= 70 ? "amber" : "red"];
   return (
     <div>
@@ -33,7 +42,9 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
   return (
     <section className="flex flex-col gap-5 rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
       <div className="flex items-center gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-4xl">{data.emoji}</div>
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-800 text-4xl">
+          {p.imageUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.imageUrl} alt={p.name} className="h-full w-full object-contain" /> : data.emoji}
+        </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-wider text-slate-500">{p.brand} · {data.ageGroup}</p>
           <h1 className="text-lg font-bold leading-tight">{p.name}</h1>
@@ -46,10 +57,15 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
       </div>
       <p className={`text-sm font-semibold ${band.text}`}>● {band.label}</p>
 
+      {data.estimated && (
+        <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+          Skor tahminidir: {[data.estimated.ingredients && "içerik", data.estimated.reviews && "yorum", data.estimated.value && "fiyat"].filter(Boolean).join(", ")} verisi bulunamadı ve nötr değer (70) kullanıldı.
+        </p>
+      )}
       <div className="flex flex-col gap-3">
-        <Bar icon={<FlaskConical className="h-4 w-4" />} label="İçerik Güvenliği" value={data.inputs.ingredientSafety} />
-        <Bar icon={<MessageSquare className="h-4 w-4" />} label="Kullanıcı Yorum Skoru" value={reviewPart} />
-        <Bar icon={<Zap className="h-4 w-4" />} label="Fiyat & Performans" value={data.inputs.valueForMoney} />
+        <Bar icon={<FlaskConical className="h-4 w-4" />} label="İçerik Güvenliği" value={data.inputs.ingredientSafety} estimated={data.estimated?.ingredients} />
+        <Bar icon={<MessageSquare className="h-4 w-4" />} label="Kullanıcı Yorum Skoru" value={reviewPart} estimated={data.estimated?.reviews} />
+        <Bar icon={<Zap className="h-4 w-4" />} label="Fiyat & Performans" value={data.inputs.valueForMoney} estimated={data.estimated?.value} />
       </div>
 
       <div className="rounded-2xl bg-slate-800/60 p-4">
@@ -61,13 +77,13 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <ul className="space-y-2 rounded-2xl bg-green-500/10 p-4 text-sm">
+      <div className="grid gap-3 sm:grid-cols-2 empty:hidden">
+        {data.pros.length > 0 && <ul className="space-y-2 rounded-2xl bg-green-500/10 p-4 text-sm">
           {data.pros.map((t) => <li key={t} className="flex gap-2"><ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />{t}</li>)}
-        </ul>
-        <ul className="space-y-2 rounded-2xl bg-red-500/10 p-4 text-sm">
+        </ul>}
+        {data.cons.length > 0 && <ul className="space-y-2 rounded-2xl bg-red-500/10 p-4 text-sm">
           {data.cons.map((t) => <li key={t} className="flex gap-2"><ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />{t}</li>)}
-        </ul>
+        </ul>}
       </div>
 
       <div className="flex flex-wrap gap-3">
