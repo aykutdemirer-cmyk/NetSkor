@@ -2,6 +2,8 @@ import ScoreCard from "@/components/ScoreCard";
 import ReviewList from "@/components/ReviewList";
 import ProductNotFound from "@/components/ProductNotFound";
 import { enrichProduct } from "@/lib/api/enrichProduct";
+import HistoryRecorder from "@/components/HistoryRecorder";
+import { calculateScore } from "@/lib/scoring";
 import type { Category } from "@/types";
 
 const CATEGORIES: Category[] = ["baby", "cosmetics", "food", "cleaning"];
@@ -13,8 +15,12 @@ export default async function ProductPage({ params, searchParams }: { params: { 
   const data = await enrichProduct(barcode, category); // mock -> API -> null
   if (!data) return <ProductNotFound query={barcode} />;
 
+  const { total, band } = calculateScore(data.product.category, data.inputs);
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8">
+      <HistoryRecorder
+        item={{ barcode: data.product.barcode, name: data.product.name, brand: data.product.brand, imageUrl: data.product.imageUrl, category: data.product.category, score: total, band }}
+      />
       <ScoreCard data={data} />
       {data.reviewMode === "demo" && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">

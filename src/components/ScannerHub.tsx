@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, ImagePlus, Search, ScanLine } from "lucide-react";
 import type { Category } from "@/types";
+import RecentProducts from "@/components/RecentProducts";
 import BarcodeScannerModal from "@/components/BarcodeScannerModal";
 import { BABY_DEMOS, CATEGORIES, DEFAULT_CATEGORY } from "@/data/categories";
 
@@ -81,6 +82,8 @@ export default function ScannerHub({ onProductSelect }: Props) {
           </motion.p>
         </AnimatePresence>
       </section>
+
+      <RecentProducts />
 
       {/* 3. Girdi seçenekleri */}
       <div className="grid grid-cols-2 gap-3">
