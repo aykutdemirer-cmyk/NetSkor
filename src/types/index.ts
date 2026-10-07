@@ -53,5 +53,6 @@ export interface ProductAnalysis {
   pros: string[];
   cons: string[];
   inputs: ScoreInputs;
+  noSting: number; // göz yakmama (0-100)
   reviews: Review[];
 }

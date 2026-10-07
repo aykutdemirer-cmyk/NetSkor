@@ -12,6 +12,7 @@ export const MOCK_PRODUCTS: Record<string, ProductAnalysis> = {
     audience: ["0-6 Ay Yenidoğan", "Pişik Eğilimli Bebekler", "Bez Bölgesi Tahrişi"],
     pros: ["Pişikte hızlı iyileşme ve koruyucu bariyer", "Çinko oksit bazlı, yaygın pediatrik tavsiye"],
     cons: ["Lanolin ve benzil türevleri: hassas bebeklerde alerji riski", "Yoğun yapı; sürekli genel nemlendirici olarak uygun değil"],
+    noSting: 60,
     inputs: { ingredientSafety: 78, reviewSatisfaction: 92, complaintRate: 0.08, certification: 80, valueForMoney: 74 },
     reviews: [
       { id: "s1", source: "trendyol", author: "an***a", verifiedBuyer: true, profile: "4 Aylık Bebek Annesi", rating: 5,
@@ -33,6 +34,7 @@ export const MOCK_PRODUCTS: Record<string, ProductAnalysis> = {
     audience: ["0-6 Ay Yenidoğan", "Günlük Banyo", "Bütçe Odaklı Aileler"],
     pros: ["Gözü yakmayan formül, bol köpük", "Litre başına çok uygun fiyat"],
     cons: ["SLES, parfüm ve fenoksietanol içerir", "Çok hassas ciltlerde kuruluk şikayeti"],
+    noSting: 90,
     inputs: { ingredientSafety: 58, reviewSatisfaction: 85, complaintRate: 0.12, certification: 55, valueForMoney: 95 },
     reviews: [
       { id: "d1", source: "amazon_tr", author: "Ca***", verifiedBuyer: true, profile: "6 Aylık Bebek Annesi", rating: 5,
@@ -52,6 +54,7 @@ export const MOCK_PRODUCTS: Record<string, ProductAnalysis> = {
     audience: ["0-6 Ay Yenidoğan", "Atopiye Eğilimli Cilt", "Saç & Vücut Tek Ürün"],
     pros: ["Sülfatsız, parabensiz; dermatolojik testli", "Avokado özlü, cildi kurutmaz"],
     cons: ["Yüksek fiyat (ml başına ~2.4x Dalin)", "Köpük az; tüketim hızlı olabilir"],
+    noSting: 85,
     inputs: { ingredientSafety: 95, reviewSatisfaction: 91, complaintRate: 0.04, certification: 92, valueForMoney: 48 },
     reviews: [
       { id: "m1", source: "hepsiburada", author: "el***f", verifiedBuyer: true, profile: "Atopik Dermatitli Bebek", rating: 5,
