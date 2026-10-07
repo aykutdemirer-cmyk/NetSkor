@@ -89,7 +89,7 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
       <div className="flex flex-wrap gap-3">
         <Link href="/" className="rounded-xl border border-slate-700 px-4 py-2 text-sm">← Yeni Ürün Tara</Link>
         {/* Katman 4: /compare?a=<barkod> */}
-        <Link href={`/compare?a=${p.barcode}`} className="rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-2 text-sm font-semibold text-white">
+        <Link href={`/compare?a=${p.barcode}&c=${p.category}`} className="rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-2 text-sm font-semibold text-white">
           VS Başka Ürünle Karşılaştır
         </Link>
       </div>

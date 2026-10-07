@@ -13,6 +13,7 @@ const COMPLAINTS: Record<Category, Rule[]> = {
     { label: "Tahriş", pattern: /tahris/ },
     { label: "Kokusu ağır", pattern: /kokusu\s+(cok\s+)?(agir|kotu|rahatsiz)|agir\s+koku/ },
     { label: "Küçük geldi", pattern: /kucuk\s+geldi|dar\s+geldi/ },
+    { label: "Gözü yaktı", pattern: /goz\w*\s+(yakti|yakiyor|yaniyor|sirdi)/ },
   ],
   cosmetics: [
     { label: "Sivilce yaptı", pattern: /sivilce\s+(yapti|yapiyor|cikardi|oldu)|sivilce\s+cikar/ },
@@ -70,20 +71,23 @@ export interface ReviewAnalysis {
   topPros: string[];
   topCons: string[];
   sampleReviews: Review[];
+  noSting: number; // göz yakmama (0-100); yorumlardan türetilir, veri yoksa nötr 70
 }
 
 const top = (counts: Map<string, number>, n = 2) =>
   [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k);
 
 export function analyzeReviews(category: Category, reviews: Review[]): ReviewAnalysis {
-  if (reviews.length === 0) return { analyzed: false, reviewScore: 0, complaintRate: 0, topPros: [], topCons: [], sampleReviews: [] };
+  if (reviews.length === 0) return { analyzed: false, reviewScore: 0, complaintRate: 0, topPros: [], topCons: [], sampleReviews: [], noSting: 70 };
 
   const pros = new Map<string, number>(), cons = new Map<string, number>();
-  let complained = 0;
+  let complained = 0, eyeGood = 0, eyeBad = 0;
   const tagged = reviews.map((r) => {
     const t = normTr(r.text);
     const c = hits(COMPLAINTS[category], t), p = hits(PROS, t);
     if (c.length) complained++;
+    if (p.some((x) => x.label === "Göz yakmaz")) eyeGood++;
+    if (c.some((x) => x.label === "Gözü yaktı")) eyeBad++;
     c.forEach((x) => cons.set(x.label, (cons.get(x.label) ?? 0) + 1));
     p.forEach((x) => pros.set(x.label, (pros.get(x.label) ?? 0) + 1));
     const flags: ReviewFlag[] = [
@@ -106,5 +110,6 @@ export function analyzeReviews(category: Category, reviews: Review[]): ReviewAna
     topPros: top(pros),
     topCons: top(cons),
     sampleReviews: sample,
+    noSting: Math.round(Math.min(100, Math.max(0, 70 + 30 * (eyeGood / reviews.length) * 2 - 70 * (eyeBad / reviews.length) * 2))),
   };
 }

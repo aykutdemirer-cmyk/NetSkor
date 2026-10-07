@@ -1,10 +1,7 @@
 import ScoreCard from "@/components/ScoreCard";
 import ReviewList from "@/components/ReviewList";
 import ProductNotFound from "@/components/ProductNotFound";
-import { MOCK_PRODUCTS } from "@/data/mockProducts";
-import { lookupProduct } from "@/lib/api/productLookup";
-import { mapToAnalysis } from "@/lib/api/mapToAnalysis";
-import { enrichWithReviews } from "@/lib/api/enrich";
+import { enrichProduct } from "@/lib/api/enrichProduct";
 import type { Category } from "@/types";
 
 const CATEGORIES: Category[] = ["baby", "cosmetics", "food", "cleaning"];
@@ -13,12 +10,7 @@ export default async function ProductPage({ params, searchParams }: { params: { 
   const barcode = decodeURIComponent(params.barcode);
   const category = CATEGORIES.find((c) => c === searchParams.c) ?? "baby";
 
-  // 1) demo mock -> 2) Open Food/Beauty Facts -> 3) bulunamadı kartı
-  let data = MOCK_PRODUCTS[barcode];
-  if (!data) {
-    const found = await lookupProduct(barcode, category);
-    if (found) data = await enrichWithReviews(mapToAnalysis(found, category));
-  }
+  const data = await enrichProduct(barcode, category); // mock -> API -> null
   if (!data) return <ProductNotFound query={barcode} />;
 
   return (
