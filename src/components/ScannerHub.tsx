@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, ImagePlus, Search, ScanLine } from "lucide-react";
 import type { Category } from "@/types";
+import BarcodeScannerModal from "@/components/BarcodeScannerModal";
 import { BABY_DEMOS, CATEGORIES, DEFAULT_CATEGORY } from "@/data/categories";
 
 interface Props {
@@ -17,6 +18,7 @@ const Corner = ({ pos }: { pos: string }) => (
 export default function ScannerHub({ onProductSelect }: Props) {
   const [category, setCategory] = useState<Category>(DEFAULT_CATEGORY);
   const [query, setQuery] = useState("");
+  const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = CATEGORIES.find((c) => c.id === category)!;
 
@@ -83,7 +85,7 @@ export default function ScannerHub({ onProductSelect }: Props) {
       {/* 3. Girdi seçenekleri */}
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => alert("Kamera tarayıcı sonraki katmanda bağlanacak.")}
+          onClick={() => setScanning(true)}
           className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 py-3 text-sm font-semibold text-white"
         >
           <Camera className="h-4 w-4" /> Kamerayı Aç
@@ -135,6 +137,15 @@ export default function ScannerHub({ onProductSelect }: Props) {
           ))}
         </section>
       )}
+      <BarcodeScannerModal
+        open={scanning}
+        onClose={() => setScanning(false)}
+        onDetected={(code) => {
+          setScanning(false);
+          setQuery(code);
+          onProductSelect(code, category);
+        }}
+      />
     </main>
   );
 }
