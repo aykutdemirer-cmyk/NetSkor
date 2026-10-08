@@ -10,7 +10,7 @@ export interface LookupResult {
   nutriscore?: string;
   categoryTags?: string[];
   quantity?: string;
-  source: "openfoodfacts" | "openbeautyfacts";
+  source: "openfoodfacts" | "openbeautyfacts" | "web";
 }
 
 const HOSTS = {

@@ -59,6 +59,11 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
       </div>
       <p className={`text-sm font-semibold ${band.text}`}>● {band.label}</p>
 
+      {data.productSource === "web" && (
+        <p className="rounded-xl bg-sky-500/10 px-3 py-2 text-xs text-sky-300">
+          Ürün adı ve içeriği internet aramasından otomatik çıkarıldı; doğruluğunu ambalajdan kontrol edin.
+        </p>
+      )}
       {missing.length > 0 && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
           Skor tahminidir: {missing.join(", ")} verisi bulunamadı ve nötr değer (70) kullanıldı.

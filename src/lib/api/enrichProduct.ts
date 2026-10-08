@@ -1,4 +1,5 @@
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
+import { webLookupProduct } from "./webLookup";
 import { detectCategory } from "./productSearch";
 import { lookupProduct } from "./productLookup";
 import { mapToAnalysis } from "./mapToAnalysis";
@@ -14,9 +15,10 @@ export async function enrichProduct(
 ): Promise<ProductAnalysis | null> {
   const mock = MOCK_PRODUCTS[barcode];
   if (mock) return mock;
-  const found = await lookupProduct(barcode, category, f);
+  // Open Facts'te yoksa barkodu internette ara (SerpAPI anahtarı gerekir)
+  const found = (await lookupProduct(barcode, category, f)) ?? (await webLookupProduct(barcode, category, f, env));
   if (!found) return null;
   // Kullanıcının seçtiği kategori yanlış olabilir (ör. bebek seçiliyken Nutella): kaynak ve etiketlerden belirle
   const detected = detectCategory(found.source, found.categoryTags ?? [], `${found.name} ${found.brand}`, category);
-  return enrichWithReviews(mapToAnalysis(found, detected), f, env);
+  return enrichWithReviews(mapToAnalysis(found, detected), f, env, "prices" in found ? (found as { prices: number[] }).prices : []);
 }

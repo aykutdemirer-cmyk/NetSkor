@@ -26,6 +26,7 @@ export function mapToAnalysis(r: LookupResult, category: Category): ProductAnaly
     noSting: NEUTRAL,
     inputs: { ingredientSafety, reviewSatisfaction: NEUTRAL, complaintRate: 0, certification: NEUTRAL, valueForMoney: NEUTRAL },
     reviews: [],
+    productSource: r.source === "web" ? "web" : "openfacts",
     estimated: { reviews: true, value: true, ingredients: !a.analyzed },
   };
 }
