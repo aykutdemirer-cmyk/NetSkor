@@ -50,7 +50,7 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
         <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-wider text-slate-500">{p.brand} · {data.ageGroup}</p>
           <h1 className="text-lg font-bold leading-tight">{p.name}</h1>
-          <p className="text-xs text-slate-500">Barkod: {p.barcode}</p>
+          <p className="text-xs text-slate-500">Barkod: {p.barcode}{p.priceTry > 0 && ` · ~${Math.round(p.priceTry)} TL`}</p>
         </div>
         <div className={`flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 ${band.ring}`}>
           <span className={`text-2xl font-extrabold ${band.text}`}>{score.total}</span>

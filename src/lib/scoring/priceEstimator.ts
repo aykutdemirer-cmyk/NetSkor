@@ -36,10 +36,13 @@ export function extractPrices(text: string): number[] {
 
 /** 100 = referansın yarısı veya daha ucuz, 80 = referans fiyat, 40 = referansın 2 katı (referanslar kaba tahmindir). */
 export function estimatePrice(category: Category, prices: number[], amount: number | null): PriceEstimate | null {
-  if (prices.length === 0) return null;
-  const med = median(prices);
   const ref = REF[category];
-  const ratio = amount ? med / amount / (ref.per100 / 100) : med / ref.pack;
+  const expected = amount ? (ref.per100 * amount) / 100 : ref.pack;
+  // Beklenen fiyatın 0.2x-5x dışındakiler büyük olasılıkla başka bir sayıdır (tazminat, taksit, başka boy); elenir
+  const usable = prices.filter((p) => p >= expected * 0.2 && p <= expected * 5);
+  if (usable.length === 0) return null; // güvenilir fiyat yok: "Veri yok" gösterilir, 0 puan verilmez
+  const med = median(usable);
+  const ratio = med / expected;
   const priceScore = Math.round(Math.min(100, Math.max(0, 100 - 40 * (ratio - 0.5))));
   return { priceScore, medianPrice: Math.round(med * 100) / 100, basis: amount ? "unit" : "pack" };
 }

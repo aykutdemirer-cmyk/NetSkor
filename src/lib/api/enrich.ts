@@ -6,7 +6,9 @@ import type { ProductAnalysis } from "@/types";
 /** Gerçek (API'den gelen) ürünü yorum + fiyat pipeline'ından geçirir. */
 export async function enrichWithReviews(base: ProductAnalysis, f?: typeof fetch, env?: Record<string, string | undefined>): Promise<ProductAnalysis> {
   const { product: p } = base;
-  const found = await searchReviews({ productName: p.name, brand: p.brand, category: p.category }, p.barcode, f, env);
+  // Gramaj sorguya eklenir: fiyat ve yorumlar doğru paket boyutuna yaklaşır
+  const qty = base.ageGroup !== "—" ? base.ageGroup.replace(/\s+[a-zA-Z]$/, "") : "";
+  const found = await searchReviews({ productName: `${p.name} ${qty}`.trim(), brand: p.brand, category: p.category }, p.barcode, f, env);
   const ra = analyzeReviews(p.category, found.reviews);
   const price = estimatePrice(p.category, found.prices, parseQuantity(base.ageGroup)); // ageGroup: OFF "quantity" alanı
 

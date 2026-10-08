@@ -91,3 +91,11 @@ describe("canlı arama kalitesi", () => {
     expect(estimatePrice("food", [180], 400)!.priceScore).toBeGreaterThan(20);
   });
 });
+
+describe("fiyat aykırı değer filtresi", () => {
+  it("alakasız büyük sayılar elenir; güvenilir fiyat yoksa null", () => {
+    // 400 g gıda: beklenen ~140 TL; 5.000 TL ve 3 TL elenir
+    expect(estimatePrice("food", [5000, 180, 190, 3], 400)!.medianPrice).toBe(185);
+    expect(estimatePrice("food", [5000, 9999], 400)).toBeNull();
+  });
+});
