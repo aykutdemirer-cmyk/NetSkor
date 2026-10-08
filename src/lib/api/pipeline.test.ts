@@ -94,7 +94,7 @@ describe("enrich", () => {
 describe("canlı arama kalitesi", () => {
   const input = { productName: "Nutella", brand: "Ferrero", category: "food" as const };
   it("sikayetvar.com sonuçları elenir; yalnızca şikayet sitesiyse demo'ya düşer", async () => {
-    const mk = (link: string) => vi.fn(async () => new Response(JSON.stringify({ organic_results: [{ title: "x", link, snippet: "Tarihi geçmiş ürün" }] }))) as unknown as typeof fetch;
+    const mk = (link: string) => vi.fn(async () => new Response(JSON.stringify({ organic_results: [{ title: "x", link, snippet: "Aldığım ürünün tarihi geçmiş çıktı, çok kötü bir deneyim yaşadık" }] }))) as unknown as typeof fetch;
     expect((await searchReviews(input, "1", mk("https://www.sikayetvar.com/nutella"), { SERPAPI_KEY: "k" })).mode).toBe("demo");
     expect((await searchReviews(input, "1", mk("https://www.trendyol.com/p/1"), { SERPAPI_KEY: "k" })).mode).toBe("live");
   });

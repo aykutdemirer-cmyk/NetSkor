@@ -7,7 +7,7 @@ beforeEach(() => _resetProviders());
 
 const ok = (body: object) => new Response(JSON.stringify(body));
 const serpapiBody = { organic_results: [{ title: "SerpAPI sonucu", link: "https://www.trendyol.com/a", snippet: "uygun fiyat 120 TL" }] };
-const serperBody = { organic: [{ title: "Serper sonucu", link: "https://www.hepsiburada.com/b", snippet: "güzel koku" }] };
+const serperBody = { organic: [{ title: "Serper sonucu", link: "https://www.hepsiburada.com/b", snippet: "Çok güzel koku var, bebeğimde sorun yaşamadık, memnunuz" }] };
 const braveBody = { web: { results: [{ title: "Brave sonucu", url: "https://www.amazon.com.tr/c", description: "<strong>etkili</strong> ürün" }] } };
 
 describe("configuredProviders", () => {
@@ -156,5 +156,23 @@ describe("Molfix regresyonları", () => {
     const r = await searchReviews({ productName: "Molfix Bebek Bezi Jumbo Mini 36'lı", brand: "Molfix", category: "baby" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
     expect(urls[0]).not.toContain("Molfix Molfix");
     expect(r.mode).toBe("live");
+  });
+});
+
+describe("yorum olmayan sayfa metinleri elenir", () => {
+  it("reklam/boş cümleler yorum sayılmaz; gerçek yorum kalır", async () => {
+    const { isReviewLike } = await import("./reviewSearch");
+    expect(isReviewLike("Bebek Bezi Beden:2 Mini 160 Adet yorumlarını inceleyin, Trendyol'a özel indirimli fiyata satın alın.")).toBe(false);
+    expect(isReviewLike("Bu sayfada bilgi yok.")).toBe(false);
+    expect(isReviewLike("Kısa metin")).toBe(false);
+    expect(isReviewLike("Bebeğimde kızarıklık yapmadı, 3 aydır kullanıyoruz, çok memnunuz.")).toBe(true);
+  });
+  it("yalnızca reklam metni dönerse yorum listesi boş, demo moda düşer", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ web: { results: [
+      { title: "t", url: "https://www.trendyol.com/p", description: "Ürünü inceleyin, Trendyol'a özel indirimli fiyata satın alın." },
+      { title: "t2", url: "https://www.trendyol.com/q", description: "Bu sayfada bilgi yok." },
+    ] } }))) as unknown as typeof fetch;
+    const r = await searchReviews({ productName: "Bebek Bezi", brand: "Molfix", category: "baby" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r.mode).toBe("demo");
   });
 });

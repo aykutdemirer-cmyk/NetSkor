@@ -19,6 +19,10 @@ const PLATFORMS: { source: ReviewSource; host: string; template: (q: string) => 
 const BLOCKED_HOSTS = ["sikayetvar.com"];
 const blocked = (link: string) => { try { return BLOCKED_HOSTS.some((h) => new URL(link).hostname.endsWith(h)); } catch { return true; } };
 
+// Mağaza sayfası reklam/boş metinleri yorum değildir: yorum skorunu ve rozetleri bozar
+const BOILERPLATE = /satın\s+al|yorumlarını\s+incele|inceleyin|indirimli\s+fiyat|sepete\s+ekle|ücretsiz\s+kargo|hemen\s+(incele|sipariş)|bu\s+sayfada\s+bilgi\s+yok|fiyatları\s+ve\s+özellikleri|en\s+uygun\s+fiyat|kampanya/i;
+export const isReviewLike = (snippet: string) => snippet.trim().length >= 25 && !BOILERPLATE.test(snippet);
+
 const sourceOf = (link: string): ReviewSource => {
   try {
     const h = new URL(link).hostname;
@@ -78,7 +82,7 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
   const results = await Promise.all(PLATFORMS.map((p) => searchWeb(p.template(q), env, f)));
   if (results.every((r) => r === null)) return demoReviews(input, barcode); // anahtar yok ya da tüm sağlayıcılar başarısız
 
-  const hits: WebHit[] = results.flatMap((r) => r?.hits ?? []).filter((h) => h.snippet && h.link && !blocked(h.link));
+  const hits: WebHit[] = results.flatMap((r) => r?.hits ?? []).filter((h) => isReviewLike(h.snippet) && h.link && !blocked(h.link));
   const reviews: Review[] = hits.map((h, i) => ({
     id: `live-${barcode}-${i}`, source: sourceOf(h.link), author: new URL(h.link).hostname.replace(/^www\./, ""),
     verifiedBuyer: false, rating: (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category)) as 1 | 2 | 3 | 4 | 5,
@@ -87,7 +91,7 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
   if (reviews.length === 0) {
     // Uzun ürün adı sonuç vermemiş olabilir: ilk 4 kelimeyle tek bir genel arama daha dene
     const short = await searchWeb(`${q.split(/\s+/).slice(0, 4).join(" ")} yorumlar`, env, f);
-    const extra = (short?.hits ?? []).filter((h) => h.snippet && h.link && !blocked(h.link));
+    const extra = (short?.hits ?? []).filter((h) => isReviewLike(h.snippet) && h.link && !blocked(h.link));
     if (extra.length === 0) return demoReviews(input, barcode);
     return {
       mode: "live",
