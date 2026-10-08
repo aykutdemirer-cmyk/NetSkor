@@ -150,7 +150,7 @@ describe("Molfix regresyonları", () => {
     const urls: string[] = [];
     const f = vi.fn(async (u: string) => {
       urls.push(decodeURIComponent(u));
-      const short = decodeURIComponent(u).endsWith("Molfix Bebek Bezi Jumbo yorumlar&country=tr&search_lang=tr&count=5");
+      const short = decodeURIComponent(u).includes("Molfix Bebek Bezi Jumbo yorumlar");
       return new Response(JSON.stringify({ web: { results: short ? [{ title: "t", url: "https://www.trendyol.com/p", description: "Çok memnun kaldım, uygun fiyat" }] : [] } }));
     }) as unknown as typeof fetch;
     const r = await searchReviews({ productName: "Molfix Bebek Bezi Jumbo Mini 36'lı", brand: "Molfix", category: "baby" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
@@ -174,5 +174,84 @@ describe("yorum olmayan sayfa metinleri elenir", () => {
     ] } }))) as unknown as typeof fetch;
     const r = await searchReviews({ productName: "Bebek Bezi", brand: "Molfix", category: "baby" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
     expect(r.mode).toBe("demo");
+  });
+});
+
+describe("Molfix ekranı: yorum olmayan kayıtlar ve gramaj", () => {
+  const brave = (results: { title: string; url: string; description: string }[]) =>
+    vi.fn(async () => new Response(JSON.stringify({ web: { results } }))) as unknown as typeof fetch;
+  const input = { productName: "Molfix 3D Eko Paket Mini 36Lı", brand: "Molfix", category: "baby" as const };
+
+  it("Instagram, marka sitesi, menü metni ve duygusuz özetler elenir; gerçek yorum kalır", async () => {
+    const f = brave([
+      { title: "i", url: "https://www.instagram.com/p/x", description: "Molfix Tatlı Rüyalar bebek bezi ile sana ve bebeğine kalan tek şey iyi bir gece uykusu #Molfix" },
+      { title: "m", url: "https://www.molfix.com.tr/urunler", description: "Prematüre Bantlı Bebek Bezi · Molfix Premium Yenidoğan · Molfix Tatlı Rüyalar · Mini Bebek Bezi" },
+      { title: "n", url: "https://www.trendyol.com/m", description: "Bez 36 adet 2 numara paket içeriği ve ölçüleri aşağıdaki gibidir sipariş detayları" },
+      { title: "h", url: "https://www.hepsiburada.com/m", description: "Bebeğimin cildinde pişik yapmadı, çok memnun kaldım, kargo da hızlıydı" },
+    ]);
+    const r = await searchReviews(input, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r.mode).toBe("live");
+    expect(r.reviews).toHaveLength(1);
+    expect(r.reviews[0].source).toBe("hepsiburada");
+    expect(r.reviews[0].rating).toBeGreaterThanOrEqual(4);
+  });
+
+  it("hepsi elenirse demo moda (Veri yok) düşer", async () => {
+    const f = brave([{ title: "i", url: "https://www.instagram.com/p/x", description: "Molfix Tatlı Rüyalar bebek bezi ile iyi bir gece uykusu #Molfix" }]);
+    expect((await searchReviews(input, "1", f, { BRAVE_SEARCH_API_KEY: "b" })).mode).toBe("demo");
+  });
+
+  it("'36Lı' adet ifadesi litre sayılmaz", async () => {
+    const f = brave([
+      { title: "Molfix 3D Eko Paket Mini 36Lı Bebek Bezi 8690536821129", url: "https://www.trendyol.com/m", description: "8690536821129" },
+      { title: "Molfix 3D Eko Paket Mini 36Lı Bebek Bezi", url: "https://www.hepsiburada.com/m", description: "8690536821129" },
+    ]);
+    const r = await webLookupProduct("8690536821129", "baby", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r?.quantity).toBeUndefined();
+  });
+});
+
+describe("kara liste, teslimat filtresi, forum önceliği", () => {
+  const brave = (results: { title: string; url: string; description: string }[]) =>
+    vi.fn(async () => new Response(JSON.stringify({ web: { results } }))) as unknown as typeof fetch;
+  const input = { productName: "Molfix Bebek Bezi", brand: "Molfix", category: "baby" as const };
+
+  it("sorgulara -site: dışlamaları eklenir; bebekte forum sorgusu da atılır", async () => {
+    const urls: string[] = [];
+    const f = vi.fn(async (u: string) => { urls.push(decodeURIComponent(u)); return new Response(JSON.stringify({ web: { results: [] } })); }) as unknown as typeof fetch;
+    await searchReviews(input, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    const first = urls.slice(0, 5);
+    expect(first).toHaveLength(5); // google, trendyol, hepsiburada, amazon, forum
+    for (const u of first) {
+      expect(u).toContain("-site:instagram.com");
+      expect(u).toContain("-site:tiktok.com");
+      expect(u).toContain("-site:molfix.com.tr");
+    }
+    expect(first.some((u) => u.includes("site:kadinlarkulubu.com OR site:eksisozluk.com"))).toBe(true);
+    // bebek dışı kategoride forum sorgusu yok
+    urls.length = 0;
+    await searchReviews({ ...input, category: "food" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(urls.slice(0, 4).some((u) => u.includes("kadinlarkulubu"))).toBe(false);
+  });
+
+  it("yalnızca kargo/satıcı yorumu elenir; karışık yorumda ürün kısmı kalır", async () => {
+    const { stripDelivery, inferRating } = await import("@/lib/scoring/reviewAnalyzer");
+    expect(stripDelivery("Hızlı kargo, satıcı iyi paketlemiş, kurye çok nazikti")).toBe("");
+    expect(stripDelivery("Kargoya verdiler, bebeğimde kızarıklık yaptı, hiç memnun kalmadım")).toContain("kızarıklık");
+    expect(inferRating("Çok hızlı kargo, satıcı iyi paketlemiş", "baby")).toBe(3); // duygu yok
+    expect(inferRating("Kargo süperdi ama bebeğimde kızarıklık yaptı", "baby")).toBeLessThan(3);
+    const f = brave([{ title: "t", url: "https://www.trendyol.com/p", description: "Hızlı kargo, satıcı iyi paketlemiş, kurye çok nazikti, teşekkürler" }]);
+    expect((await searchReviews(input, "1", f, { BRAVE_SEARCH_API_KEY: "b" })).mode).toBe("demo");
+  });
+
+  it("aynı sonuç birden çok sorguda gelse bile tek yorum; bebekte forum > Trendyol sıralı", async () => {
+    const f = brave([
+      { title: "t", url: "https://www.trendyol.com/p", description: "Bebeğimde pişik yapmadı, çok memnun kaldım, güzel koku" },
+      { title: "k", url: "https://www.kadinlarkulubu.com/konu", description: "Bu bezi öneririm, bebeğimin cildinde tahriş yapmadı, memnunuz" },
+    ]);
+    const r = await searchReviews(input, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r.reviews).toHaveLength(2); // 5 sorgu aynı sonucu döndürse de tekrarsız
+    expect(r.reviews[0].source).toBe("forum");
+    expect(r.reviews[1].source).toBe("trendyol");
   });
 });

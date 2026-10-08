@@ -51,7 +51,7 @@ export function extractIngredients(text: string): string | undefined {
 }
 
 // "3-6 kg" bebek ağırlık aralığıdır, paket gramajı değil: aralık içindeki değer atlanır
-const quantityOf = (name: string) => name.match(/(?<!\d\s?[-–]\s?)(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|lt|l)\b/i)?.[0];
+const quantityOf = (name: string) => name.match(/(?<!\d\s?[-–]\s?)(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|lt|l)(?![\wçğıöşüÇĞİÖŞÜ])/i)?.[0];
 
 export interface TraceStep { query: string; via: string; count: number; titles: string[] }
 

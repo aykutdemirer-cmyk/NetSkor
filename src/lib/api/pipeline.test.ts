@@ -58,7 +58,7 @@ describe("reviewSearch", () => {
     const f = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ organic_results: [{ title: "x", link: "https://www.trendyol.com/p/1", snippet: "Hassas cilde uygun, 139,90 TL", rich_snippet: { top: { detected_extensions: { rating: 4.6 } } } }] })));
     const r = await searchReviews(input, "1", f as unknown as typeof fetch, { SERPAPI_KEY: "k" });
     expect(r.mode).toBe("live");
-    expect(f).toHaveBeenCalledTimes(4);
+    expect(f).toHaveBeenCalledTimes(5); // bebek kategorisinde 4 platform + 1 forum sorgusu
     expect(r.reviews[0]).toMatchObject({ source: "trendyol", rating: 5 });
     expect(r.prices).toContain(139.9);
   });

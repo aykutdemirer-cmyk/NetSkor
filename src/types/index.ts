@@ -1,5 +1,5 @@
 export type Category = "baby" | "cosmetics" | "food" | "cleaning";
-export type ReviewSource = "google" | "trendyol" | "hepsiburada" | "amazon_tr";
+export type ReviewSource = "google" | "trendyol" | "hepsiburada" | "amazon_tr" | "forum";
 export type ScoreBand = "green" | "amber" | "red";
 
 export interface Product {
@@ -53,6 +53,8 @@ export interface ProductAnalysis {
   pros: string[];
   cons: string[];
   inputs: ScoreInputs;
+  unitPrice?: string; // örn. "4,2 TL / bez"
+  claims?: string[]; // üretici beyanları (parfümsüz, klor içermez...)
   productSource?: "openfacts" | "web" | "user"; // web: ad/içerik internet aramasından çıkarıldı, doğrulanmadı
   reviewMode?: "live" | "demo"; // demo: yorum/fiyat deterministik örnek veri
   estimated?: { reviews: boolean; value: boolean; ingredients: boolean }; // gerçek veri yoksa nötr değer kullanıldı

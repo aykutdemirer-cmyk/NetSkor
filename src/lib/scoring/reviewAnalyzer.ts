@@ -47,6 +47,15 @@ const PROS: Rule[] = [
   { label: "Etkili", pattern: /etkili|ise\s+yaradi|memnun\s+kaldim/ },
 ];
 
+// Ürünle ilgisiz teslimat/satıcı cümleleri ("kargoya verdiler", "satıcı iyi paketlemiş") duygu analizine girmez
+const DELIVERY = /kargo|kurye|teslimat|paketle|satici|hizmet|siparis|ertesi gun|gun icinde|hizli geldi|gec geldi/;
+export function stripDelivery(text: string): string {
+  return text
+    .split(/[.!?;\n]+|,\s*|\s+(?:ve|ama|fakat|ancak|lakin)\s+/i)
+    .filter((c) => c.trim() && !DELIVERY.test(normTr(c)))
+    .join(". ");
+}
+
 const NEGATION = /^.{0,25}?(yapmadi|yapmiyor|olmadi|yok\b|degil)/;
 
 // Olumsuzlama ("alerji yapmadı") şikayet sayılmaz
@@ -58,12 +67,14 @@ function hits(rules: Rule[], text: string): Rule[] {
 }
 
 /** Puanı olmayan snippet'lar için sözlükten tahmini yıldız (1-5). */
-const GENERIC_NEGATIVE = /sikayet|memnun\s+degil|berbat|rezalet|hayal\s+kirikligi|iade|sorun|hata|degisiklik|kotu/;
+const GENERIC_POSITIVE = /super|harika|mukemmel|tavsiye\s+ederim|memnun|begen|kaliteli|tesekkur|sorunsuz|guzel/;
+const GENERIC_NEGATIVE = /sikayet|memnun\s+degil|berbat|rezalet|hayal\s+kirikligi|iade|(?:sorun|hata)(?!\s+(?:yasamadi|yok|olmadi|cikmadi|gormedi))|degisiklik|kotu/;
 
 export function inferRating(text: string, category: Category): 1 | 2 | 3 | 4 | 5 {
-  const t = normTr(text);
+  const t = normTr(stripDelivery(text));
   const neg = GENERIC_NEGATIVE.test(t) ? 1 : 0;
-  const score = 3 + hits(PROS, t).length - 1.5 * hits(COMPLAINTS[category], t).length - 1.5 * neg;
+  const gp = GENERIC_POSITIVE.test(t) && !neg ? 1 : 0;
+  const score = 3 + gp + hits(PROS, t).length - 1.5 * hits(COMPLAINTS[category], t).length - 1.5 * neg;
   return Math.min(5, Math.max(1, Math.round(score))) as 1 | 2 | 3 | 4 | 5;
 }
 
@@ -86,7 +97,7 @@ export function analyzeReviews(category: Category, reviews: Review[]): ReviewAna
   const pros = new Map<string, number>(), cons = new Map<string, number>();
   let complained = 0, eyeGood = 0, eyeBad = 0;
   const tagged = reviews.map((r) => {
-    const t = normTr(r.text);
+    const t = normTr(stripDelivery(r.text));
     const c = hits(COMPLAINTS[category], t), p = hits(PROS, t);
     if (c.length) complained++;
     if (p.some((x) => x.label === "Göz yakmaz")) eyeGood++;

@@ -11,6 +11,7 @@ const SOURCES: { id: ReviewSource | "all"; label: string }[] = [
   { id: "trendyol", label: "Trendyol" },
   { id: "hepsiburada", label: "Hepsiburada" },
   { id: "amazon_tr", label: "Amazon TR" },
+  { id: "forum", label: "Forum" },
 ];
 const SOURCE_LABEL = Object.fromEntries(SOURCES.map((s) => [s.id, s.label]));
 
