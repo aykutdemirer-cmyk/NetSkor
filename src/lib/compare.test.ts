@@ -63,7 +63,7 @@ describe("noSting türetimi", () => {
 
 describe("enrichProduct kategori tespiti", () => {
   it("bebek seçiliyken OFF'taki Nutella gıda olarak analiz edilir", async () => {
-    const f = vi.fn(async (u: string) => u.includes("beauty") ? miss() : new Response(JSON.stringify({ status: 1, product: { code: "3017620422003", product_name: "Nutella", brands: "Ferrero", categories_tags: ["en:spreads"], ingredients_text: "Sugar, palm oil, hazelnuts" } })))) as unknown as typeof fetch;
+    const f = vi.fn(async (u: string) => u.includes("beauty") ? miss() : new Response(JSON.stringify({ status: 1, product: { code: "3017620422003", product_name: "Nutella", brands: "Ferrero", categories_tags: ["en:spreads"], ingredients_text: "Sugar, palm oil, hazelnuts" } }))) as unknown as typeof fetch;
     const r = await enrichProduct("3017620422003", "baby", f, {});
     expect(r?.product.category).toBe("food");
     expect(r?.cons.join(" ")).toContain("Palm yağı");
