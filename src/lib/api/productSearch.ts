@@ -50,8 +50,8 @@ export function detectCategory(source: Source, tags: string[], text: string, sel
 }
 
 async function searchSource(source: Source, query: string, category: Category, f: Fetcher): Promise<Candidate[]> {
-  const url = `${HOSTS[source]}/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=12&fields=${FIELDS}`;
-  const res = await f(url, { headers: { "User-Agent": "NetSkor/0.1 (netskor.app)" }, signal: AbortSignal.timeout(6000) });
+  const url = `${HOSTS[source]}/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=12&sort_by=unique_scans_n&fields=${FIELDS}`;
+  const res = await f(url, { headers: { "User-Agent": "NetSkor/0.1 (netskor.app)" }, signal: AbortSignal.timeout(9000) });
   if (!res.ok) throw new Error(`${source} ${res.status}`);
   const j = await res.json();
   return (j.products ?? [])
@@ -72,14 +72,22 @@ export function searchMock(query: string): Candidate[] {
     .filter((c) => relevance(query, c) >= 1);
 }
 
+async function searchLive(q: string, category: Category, f: Fetcher): Promise<Candidate[]> {
+  const order: Source[] = category === "food" ? ["openfoodfacts", "openbeautyfacts"] : ["openbeautyfacts", "openfoodfacts"];
+  // İki kaynak paralel; biri düşerse diğeri yeter
+  const settled = await Promise.allSettled(order.map((s) => searchSource(s, q, category, f)));
+  settled.forEach((r, i) => r.status === "rejected" && console.error(`[productSearch] ${order[i]} başarısız (“${q}”):`, r.reason instanceof Error ? r.reason.message : r.reason));
+  return settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+}
+
 export async function searchProducts(query: string, category: Category, f: Fetcher = fetch): Promise<Candidate[]> {
   const q = query.trim();
   if (!q) return [];
-  const order: Source[] = category === "food" ? ["openfoodfacts", "openbeautyfacts"] : ["openbeautyfacts", "openfoodfacts"];
 
-  // İki kaynak paralel; biri düşerse diğeri yeter, ikisi de düşerse yalnızca mock kalır
-  const settled = await Promise.allSettled(order.map((s) => searchSource(s, q, category, f)));
-  const live = settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  let live = await searchLive(q, category, f);
+  // Uzun sorgular OFF'ta sık boş döner: sonuç yoksa ilk iki kelimeyle (genelde marka + tür) bir kez daha dene
+  const words = q.split(/\s+/);
+  if (live.length === 0 && words.length > 2) live = await searchLive(words.slice(0, 2).join(" "), category, f);
 
   const seen = new Set<string>();
   return [...searchMock(q), ...live]

@@ -48,6 +48,10 @@ export default function ComparePicker({ base, popular, query, results }: Props) 
         </div>
       )}
 
+      {popular.length === 0 && !query && (
+        <p className="text-sm text-slate-400">Ürün adı yazarak ya da barkod girerek ikinci ürünü ekleyebilirsin. Barkod en kesin sonucu verir.</p>
+      )}
+
       {popular.length > 0 && (
         <div className="flex flex-col gap-2">
           <h2 className="text-xs uppercase tracking-wider text-slate-500">Popüler / Demo Ürünler</h2>

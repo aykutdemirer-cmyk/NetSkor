@@ -27,10 +27,9 @@ export default async function ComparePage({ searchParams }: { searchParams: { a?
   }
 
   if (!B) {
-    const all = Object.values(MOCK_PRODUCTS).filter((p) => p.product.barcode !== a);
-    const same = all.filter((p) => p.product.category === A!.product.category);
+    const same = Object.values(MOCK_PRODUCTS).filter(p => p.product.barcode !== a).filter((p) => p.product.category === A!.product.category);
     const results = q ? await searchProducts(q, A!.product.category) : [];
-    return <Shell back={`/product/${a}?c=${category}`}><ComparePicker base={A!} popular={same.length ? same : all} query={q} results={results} /></Shell>;
+    return <Shell back={`/product/${a}?c=${category}`}><ComparePicker base={A!} popular={same} query={q} results={results} /></Shell>;
   }
 
   return <Shell back={`/product/${a}?c=${category}`}><CompareView A={A!} B={B} /></Shell>;

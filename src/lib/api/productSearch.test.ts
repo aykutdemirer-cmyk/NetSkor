@@ -55,3 +55,20 @@ describe("searchProducts", () => {
     expect(g).not.toHaveBeenCalled();
   });
 });
+
+describe("uzun sorgu gevşetme", () => {
+  it("4 kelimelik sorgu boşsa ilk 2 kelimeyle tekrar dener", async () => {
+    const f = F(async (u) => {
+      const terms = decodeURIComponent(new URL(u).searchParams.get("search_terms") ?? "").split(" ").length;
+      return resp(terms <= 2 ? [off("8690000000099", "Sarelle Kakaolu Fındık Kreması", "Sarelle")] : []);
+    });
+    const r = await searchProducts("Sarelle Kakaolu Fındık Ezmesi", "food", f);
+    expect(r.map((c) => c.barcode)).toContain("8690000000099");
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(4); // 2 kaynak x 2 deneme
+  });
+  it("kısa sorguda tekrar denemez", async () => {
+    const f = F(async () => resp([]));
+    await searchProducts("sarelle ezme", "food", f);
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(2);
+  });
+});
