@@ -22,7 +22,7 @@ export const MOCK_PRODUCTS: Record<string, ProductAnalysis> = {
     pricePerUnit: { value: 2.31, unit: "g" },
     categoryAveragePrice: 1.8,
     ageGroupSatisfaction: [{ group: "0-6 ay", pct: 78 }, { group: "6-12 ay", pct: 88 }, { group: "1 yaş üstü", pct: 94 }],
-    featureChecklist: { sulfateFree: true, fragranceFree: false, naturalPct: 35, certificates: [] },
+    featureChecklist: { sulfateFree: true, fragranceFree: false, naturalPct: 35, certificates: [], fragrance: { tone: "warn", text: "Parfüm alerjenleri" }, preservative: { tone: "warn", text: "Benzil alkol" } },
     noSting: 60,
     inputs: { ingredientSafety: 78, reviewSatisfaction: 92, complaintRate: 0.08, certification: 80, valueForMoney: 74 },
     reviews: [
@@ -54,7 +54,7 @@ export const MOCK_PRODUCTS: Record<string, ProductAnalysis> = {
     pricePerUnit: { value: 0.1986, unit: "ml" },
     categoryAveragePrice: 0.54,
     ageGroupSatisfaction: [{ group: "0-6 ay", pct: 72 }, { group: "6-12 ay", pct: 85 }, { group: "1 yaş üstü", pct: 94 }],
-    featureChecklist: { sulfateFree: false, fragranceFree: false, naturalPct: 20, certificates: [] },
+    featureChecklist: { sulfateFree: false, fragranceFree: false, naturalPct: 20, certificates: [], fragrance: { tone: "warn", text: "Sentetik parfüm" }, preservative: { tone: "warn", text: "Fenoksietanol" } },
     noSting: 90,
     inputs: { ingredientSafety: 58, reviewSatisfaction: 85, complaintRate: 0.12, certification: 55, valueForMoney: 95 },
     reviews: [
@@ -83,7 +83,7 @@ export const MOCK_PRODUCTS: Record<string, ProductAnalysis> = {
     pricePerUnit: { value: 1.298, unit: "ml" },
     categoryAveragePrice: 0.54,
     ageGroupSatisfaction: [{ group: "0-6 ay", pct: 93 }, { group: "6-12 ay", pct: 94 }, { group: "1 yaş üstü", pct: 95 }],
-    featureChecklist: { sulfateFree: true, fragranceFree: true, naturalPct: 92, certificates: ["Dermatolojik test", "Hipoalerjenik formül"] },
+    featureChecklist: { sulfateFree: true, fragranceFree: true, naturalPct: 92, certificates: ["Dermatolojik test", "Hipoalerjenik formül"], fragrance: { tone: "warn", text: "Karakteristik koku" }, preservative: { tone: "ok", text: "Nazik koruyucu" } },
     noSting: 85,
     inputs: { ingredientSafety: 95, reviewSatisfaction: 91, complaintRate: 0.04, certification: 92, valueForMoney: 48 },
     reviews: [

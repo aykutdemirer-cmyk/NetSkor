@@ -1,9 +1,11 @@
 import { Scale, Sparkles } from "lucide-react";
-import { compareProducts, contentChecks, costCompare, scenarioPicks, type Check } from "@/lib/compare";
+import { compareProducts, contentChecks, costCompare, scenarioPicks, TONE_ICON, type Check } from "@/lib/compare";
 import { fmtTl } from "@/lib/scoring/priceEstimator";
 import type { ProductAnalysis } from "@/types";
 
-const okTone = (c: Check) => (c.ok === true ? "text-green-400" : c.ok === false ? "text-red-400" : "text-slate-500");
+const TONE_CLASS = { ok: "text-green-400", warn: "text-amber-300", bad: "text-red-400" } as const;
+const Cell = ({ c }: { c: Check }) =>
+  c.tone ? <span className={TONE_CLASS[c.tone]}>{TONE_ICON[c.tone]} {c.text}</span> : <span className="text-slate-500">—</span>;
 const Sample = () => <span className="rounded-full bg-slate-500/20 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">Örnek veri</span>;
 
 const tone = (v: number, o: number) => (v > o ? "text-green-400 font-bold" : v < o ? "text-slate-500" : "text-slate-300");
@@ -43,46 +45,65 @@ export default function CompareView({ A, B }: { A: ProductAnalysis; B: ProductAn
       </table>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">İçerik Kontrolü {sample && <Sample />}</h3>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">İçerik Röntgeni {sample && <Sample />}</h3>
         <table className="w-full text-sm">
           <thead className="text-xs text-slate-500"><tr><th className="py-1 text-left">Madde</th><th>{A.product.brand}</th><th>{B.product.brand}</th></tr></thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.label} className="border-t border-slate-800 text-center">
-                <td className="py-2 text-left">{row.label}</td>
-                <td className={`px-1 ${okTone(row.a)}`}>{row.a.text}</td>
-                <td className={`px-1 ${okTone(row.b)}`}>{row.b.text}</td>
+              <tr key={row.label} className="border-t border-slate-800 text-center align-top">
+                <td className="py-2 pr-2 text-left">{row.label}</td>
+                <td className="px-1 py-2"><Cell c={row.a} /></td>
+                <td className="px-1 py-2"><Cell c={row.b} /></td>
               </tr>
             ))}
           </tbody>
         </table>
+        <p className="mt-2 text-[11px] text-slate-500">✅ temiz · ⚠️ dikkat · ❌ riskli · — bilinmiyor</p>
       </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">Maliyet ve Bütçe {sample && <Sample />}</h3>
-        <div className="grid grid-cols-2 gap-3 text-center text-sm">
-          {([["a", A, cost.a], ["b", B, cost.b]] as const).map(([k, d, sd]) => (
-            <div key={k} className={`rounded-xl p-3 ${cost.cheaper === k ? "bg-green-500/10" : "bg-slate-800/50"}`}>
-              <div className="text-xs text-slate-500">{d.product.brand}</div>
-              <div className="font-bold">{sd.text}</div>
-            </div>
-          ))}
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">Birim Maliyet Karşılaştırması {sample && <Sample />}</h3>
+        <div className="flex flex-col gap-3">
+          {([["a", A, cost.a], ["b", B, cost.b]] as const).map(([k, d, sd]) => {
+            const max = Math.max(cost.a.per100 ?? 0, cost.b.per100 ?? 0);
+            const width = cost.comparable && sd.per100 && max ? Math.max(6, (sd.per100 / max) * 100) : 0;
+            return (
+              <div key={k}>
+                <div className="mb-1 flex justify-between text-sm">
+                  <span>{d.product.brand}</span>
+                  <span className={`font-bold ${cost.cheaper === k ? "text-green-400" : ""}`}>{sd.text}</span>
+                </div>
+                {cost.comparable && <div className="h-2 overflow-hidden rounded-full bg-slate-800"><div className={`h-full rounded-full ${cost.cheaper === k ? "bg-green-500" : "bg-red-500"}`} style={{ width: `${width}%` }} /></div>}
+              </div>
+            );
+          })}
         </div>
-        {cost.comparable && cost.cheaper && <p className="mt-2 text-xs text-slate-300">{cost.cheaper === "a" ? A.product.brand : B.product.brand} birim maliyette %{cost.diffPct} daha ucuz.</p>}
+        {cost.comparable && cost.cheaper && (
+          <p className="mt-3 text-xs text-slate-300">
+            {cost.cheaper === "a" ? A.product.brand : B.product.brand} birim maliyette %{cost.diffPct} daha ucuz
+            {cost.ratio && cost.ratio >= 1.5 ? ` (${cost.cheaper === "a" ? B.product.brand : A.product.brand} ≈ ${String(cost.ratio).replace(".", ",")} kat pahalı)` : ""}.
+          </p>
+        )}
         {!cost.comparable && <p className="mt-2 text-xs text-slate-500">Birimler farklı olduğu için doğrudan kıyaslanamıyor.</p>}
         {cost.yearly && (
-          <p className="mt-2 text-xs text-slate-300">
-            Tahmini yıllık maliyet: {A.product.brand} ≈ {fmtTl(cost.yearly.a)} TL, {B.product.brand} ≈ {fmtTl(cost.yearly.b)} TL. Fark ≈ {fmtTl(cost.yearly.diff)} TL.
-            <span className="block text-slate-500">Varsayım: {cost.yearly.assumption}.</span>
-          </p>
+          <div className="mt-3 rounded-xl bg-slate-800/50 p-3 text-xs text-slate-300">
+            <p>
+              <b>Tahmini yıllık tüketim farkı: ≈ {fmtTl(cost.yearly.diff)} TL</b> ({cost.yearly.cheaper === "a" ? A.product.brand : B.product.brand} daha ucuz)
+            </p>
+            <p className="mt-1">{A.product.brand} ≈ {fmtTl(cost.yearly.a)} TL/yıl · {B.product.brand} ≈ {fmtTl(cost.yearly.b)} TL/yıl</p>
+            <p className="mt-1 text-slate-500">Varsayım: {cost.yearly.assumption}.</p>
+          </div>
         )}
       </section>
 
+      <h3 className="-mb-2 text-sm font-semibold">Kime Göre Hangisi?</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         {scenarios.map((sc) => (
           <section key={sc.title} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
             <h3 className="mb-2 text-sm font-semibold">{sc.title}</h3>
-            <p className={`mb-2 text-base font-bold ${sc.winner === "tie" ? "text-slate-300" : "text-green-400"}`}>{nameOf(sc.winner) ?? "Başa baş"}</p>
+            <p className={`mb-2 text-base font-bold ${sc.winner === "tie" ? "text-slate-300" : "text-green-400"}`}>
+              {sc.winner === "tie" ? "Başa baş" : `Tavsiye: ${nameOf(sc.winner)}`}
+            </p>
             <ul className="space-y-1 text-xs text-slate-300">{sc.reasons.map((x) => <li key={x}>• {x}</li>)}</ul>
           </section>
         ))}

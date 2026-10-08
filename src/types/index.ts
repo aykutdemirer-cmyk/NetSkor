@@ -72,9 +72,12 @@ export interface ProductAnalysis {
 export interface InciHighlight { name: string; tone: "good" | "warn" | "risk"; note?: string }
 export interface PricePerUnit { value: number; unit: "ml" | "g" | "adet"; label?: string } // TL / birim
 export interface AgeSatisfaction { group: string; pct: number }
+export interface TonedNote { tone: "ok" | "warn" | "bad"; text: string }
 export interface FeatureChecklist {
   sulfateFree: boolean | null; // null = bilinmiyor
   fragranceFree: boolean | null;
   naturalPct: number | null;
   certificates: string[];
+  fragrance?: TonedNote; // örn. { warn, "Sentetik parfüm" }
+  preservative?: TonedNote; // örn. { warn, "Fenoksietanol" }
 }

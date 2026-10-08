@@ -60,21 +60,28 @@ export function compareProducts(A: ProductAnalysis, B: ProductAnalysis): Compari
 }
 
 // ---------- Zengin karşılaştırma: içerik kontrolü, maliyet, senaryolar ----------
-export interface Check { text: string; ok: boolean | null } // ok: true ✓, false ✗, null bilinmiyor
+export type Tone = "ok" | "warn" | "bad" | null; // null: bilinmiyor
+export interface Check { text: string; tone: Tone }
 export interface ContentRow { label: string; a: Check; b: Check }
 
-const tri = (v: boolean | null | undefined): Check => (v == null ? { text: "—", ok: null } : v ? { text: "✓", ok: true } : { text: "✗", ok: false });
+export const TONE_ICON: Record<Exclude<Tone, null>, string> = { ok: "✅", warn: "⚠️", bad: "❌" };
+const unknown: Check = { text: "—", tone: null };
 
-/** Yan yana madde kontrolü: sülfat, parfüm, doğallık yüzdesi, pediatrik/dermatolojik sertifikalar. */
+/** İçerik röntgeni: sülfat, parfüm/koku, koruyucu türü, klinik/pediatrik onay ve doğallık; iki ürün yan yana. */
 export function contentChecks(A: ProductAnalysis, B: ProductAnalysis): ContentRow[] {
+  const sulfate = (f?: ProductAnalysis["featureChecklist"]): Check => (f?.sulfateFree == null ? unknown : f.sulfateFree ? { text: "Yok", tone: "ok" } : { text: "Var", tone: "bad" });
+  const fragrance = (f?: ProductAnalysis["featureChecklist"]): Check =>
+    f?.fragrance ? { text: f.fragrance.text, tone: f.fragrance.tone } : f?.fragranceFree == null ? unknown : f.fragranceFree ? { text: "Parfümsüz", tone: "ok" } : { text: "Parfüm içerir", tone: "warn" };
+  const preservative = (f?: ProductAnalysis["featureChecklist"]): Check => (f?.preservative ? { text: f.preservative.text, tone: f.preservative.tone } : unknown);
+  const clinical = (f?: ProductAnalysis["featureChecklist"]): Check => (!f ? unknown : f.certificates.length ? { text: f.certificates.join(", "), tone: "ok" } : { text: "Yok", tone: "bad" });
+  const natural = (f?: ProductAnalysis["featureChecklist"]): Check => (f?.naturalPct == null ? unknown : { text: `%${f.naturalPct}`, tone: f.naturalPct >= 70 ? "ok" : f.naturalPct >= 40 ? "warn" : "bad" });
   const fa = A.featureChecklist, fb = B.featureChecklist;
-  const natural = (f?: typeof fa): Check => (f?.naturalPct == null ? { text: "—", ok: null } : { text: `%${f.naturalPct}`, ok: f.naturalPct >= 70 });
-  const certs = (f?: typeof fa): Check => (!f ? { text: "—", ok: null } : f.certificates.length ? { text: `✓ ${f.certificates.join(", ")}`, ok: true } : { text: "✗", ok: false });
   return [
-    { label: "Sülfat içermez", a: tri(fa?.sulfateFree), b: tri(fb?.sulfateFree) },
-    { label: "Parfümsüz", a: tri(fa?.fragranceFree), b: tri(fb?.fragranceFree) },
+    { label: "Sülfat (SLS / SLES)", a: sulfate(fa), b: sulfate(fb) },
+    { label: "Parfüm / Koku", a: fragrance(fa), b: fragrance(fb) },
+    { label: "Koruyucu Türü", a: preservative(fa), b: preservative(fb) },
+    { label: "Klinik / Pediatrik Onay", a: clinical(fa), b: clinical(fb) },
     { label: "Doğallık", a: natural(fa), b: natural(fb) },
-    { label: "Pediatrik / dermatolojik sertifika", a: certs(fa), b: certs(fb) },
   ];
 }
 
@@ -85,6 +92,7 @@ export interface CostComparison {
   comparable: boolean; // aynı birimde (ml/g) mi
   cheaper?: "a" | "b";
   diffPct?: number; // ucuz olan, pahalıdan yüzde kaç daha ucuz
+  ratio?: number; // pahalı olan kaç kat daha pahalı
   yearly?: { a: number; b: number; diff: number; cheaper: "a" | "b"; assumption: string };
 }
 
@@ -104,6 +112,7 @@ export function costCompare(A: ProductAnalysis, B: ProductAnalysis): CostCompari
     const [lo, hi] = a.per100! <= b.per100! ? [a.per100!, b.per100!] : [b.per100!, a.per100!];
     out.cheaper = a.per100! <= b.per100! ? "a" : "b";
     out.diffPct = Math.round((1 - lo / hi) * 100);
+    out.ratio = Math.round((hi / lo) * 10) / 10;
   }
   // Yıllık tüketim farkı: yalnızca aynı tür ürünlerde ve birim uyuşuyorsa
   const ua = annualUsage(A.product.name), ub = annualUsage(B.product.name);
@@ -137,7 +146,7 @@ export function scenarioPicks(A: ProductAnalysis, B: ProductAnalysis): ScenarioP
   const sensReasons: string[] = [];
   const fa = A.featureChecklist, fb = B.featureChecklist;
   if (fa?.sulfateFree != null && fb?.sulfateFree != null && fa.sulfateFree !== fb.sulfateFree) sensReasons.push(`${fa.sulfateFree ? nameA : nameB} sülfatsız, ${fa.sulfateFree ? nameB : nameA} sülfat içeriyor.`);
-  if (fa?.fragranceFree != null && fb?.fragranceFree != null && fa.fragranceFree !== fb.fragranceFree) sensReasons.push(`${fa.fragranceFree ? nameA : nameB} parfümsüz.`);
+  if (fa?.fragranceFree != null && fb?.fragranceFree != null && fa.fragranceFree !== fb.fragranceFree) sensReasons.push(`${fa.fragranceFree ? nameA : nameB} sentetik parfüm içermiyor${(fa.fragranceFree ? fa : fb).fragrance ? ` (${(fa.fragranceFree ? fa : fb).fragrance!.text.toLocaleLowerCase("tr")})` : ""}.`);
   const ca = fa?.certificates.length ?? 0, cb = fb?.certificates.length ?? 0;
   if (ca !== cb) sensReasons.push(`${ca > cb ? nameA : nameB} dermatolojik/pediatrik sertifikaya sahip.`);
   const ra = A.inputs.complaintRate ?? 0, rb = B.inputs.complaintRate ?? 0;
@@ -153,7 +162,7 @@ export function scenarioPicks(A: ProductAnalysis, B: ProductAnalysis): ScenarioP
   if (budgetReasons.length === 0) budgetReasons.push("Maliyet göstergelerinde belirgin bir fark yok.");
 
   return [
-    { title: "Hassas / Yenidoğan Cilt için Hangisi?", winner: sensWinner, reasons: sensReasons.slice(0, 3) },
-    { title: "Bütçe ve Günlük Kullanım için Hangisi?", winner: budgetWinner, reasons: budgetReasons.slice(0, 3) },
+    { title: "Yenidoğan / Hassas Ciltler İçin", winner: sensWinner, reasons: sensReasons.slice(0, 3) },
+    { title: "Bütçe Dostu / Günlük Kullanım İçin", winner: budgetWinner, reasons: budgetReasons.slice(0, 3) },
   ];
 }

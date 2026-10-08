@@ -6,6 +6,7 @@ import { vsAverage } from "./scoring/priceEstimator";
 import { annualUsage } from "./usage";
 import { mapToAnalysis } from "./api/mapToAnalysis";
 
+const budget0Title = () => scenarioPicks(M["8690605061158"], M["3504105035600"])[1].title;
 const dalin = M["8690605061158"], mustela = M["3504105035600"], sudocrem = M["5011091104752"];
 
 describe("zengin mock veri", () => {
@@ -27,22 +28,29 @@ describe("zengin mock veri", () => {
 });
 
 describe("karşılaştırma: içerik, maliyet, senaryo", () => {
-  it("içerik kontrol tablosu", () => {
+  it("içerik röntgeni: sülfat, parfüm, koruyucu, onay", () => {
     const rows = contentChecks(dalin, mustela);
-    expect(rows.map((r) => r.label)).toEqual(["Sülfat içermez", "Parfümsüz", "Doğallık", "Pediatrik / dermatolojik sertifika"]);
-    expect(rows[0]).toMatchObject({ a: { text: "✗", ok: false }, b: { text: "✓", ok: true } });
-    expect(rows[2]).toMatchObject({ a: { text: "%20", ok: false }, b: { text: "%92", ok: true } });
+    expect(rows.map((r) => r.label)).toEqual(["Sülfat (SLS / SLES)", "Parfüm / Koku", "Koruyucu Türü", "Klinik / Pediatrik Onay", "Doğallık"]);
+    expect(rows[0]).toMatchObject({ a: { text: "Var", tone: "bad" }, b: { text: "Yok", tone: "ok" } });
+    expect(rows[1]).toMatchObject({ a: { text: "Sentetik parfüm", tone: "warn" }, b: { text: "Karakteristik koku", tone: "warn" } });
+    expect(rows[2]).toMatchObject({ a: { text: "Fenoksietanol", tone: "warn" }, b: { text: "Nazik koruyucu", tone: "ok" } });
+    expect(rows[3]).toMatchObject({ a: { text: "Yok", tone: "bad" }, b: { tone: "ok" } });
     expect(rows[3].b.text).toContain("Dermatolojik test");
-    // bilinmeyen alan: tire
-    const unknown = { ...dalin, featureChecklist: undefined };
-    expect(contentChecks(unknown, mustela)[0].a).toEqual({ text: "—", ok: null });
+    expect(rows[4]).toMatchObject({ a: { text: "%20", tone: "bad" }, b: { text: "%92", tone: "ok" } });
+    // bilinmeyen alan: tire, ton yok
+    expect(contentChecks({ ...dalin, featureChecklist: undefined }, mustela)[0].a).toEqual({ text: "—", tone: null });
+  });
+  it("fragrance notu yoksa fragranceFree'den türetilir", () => {
+    const base = { ...dalin.featureChecklist!, fragrance: undefined };
+    expect(contentChecks({ ...dalin, featureChecklist: { ...base, fragranceFree: true } }, mustela)[1].a).toEqual({ text: "Parfümsüz", tone: "ok" });
+    expect(contentChecks({ ...dalin, featureChecklist: { ...base, fragranceFree: false } }, mustela)[1].a).toEqual({ text: "Parfüm içerir", tone: "warn" });
   });
 
   it("100 ml birim maliyeti ve yıllık fark", () => {
     const c = costCompare(dalin, mustela);
     expect(c.a.text).toBe("19,86 TL / 100 ml");
     expect(c.b.text).toBe("129,80 TL / 100 ml");
-    expect(c).toMatchObject({ comparable: true, cheaper: "a", diffPct: 85 });
+    expect(c).toMatchObject({ comparable: true, cheaper: "a", diffPct: 85, ratio: 6.5 });
     expect(c.yearly).toMatchObject({ a: 238, b: 1558, diff: 1320, cheaper: "a" });
     // farklı birim (g vs ml): kıyaslanamaz, yıllık yok
     const mixed = costCompare(sudocrem, dalin);
@@ -52,9 +60,11 @@ describe("karşılaştırma: içerik, maliyet, senaryo", () => {
 
   it("senaryolar: hassas cilt Mustela, bütçe Dalin; gerekçeler dolu", () => {
     const [sensitive, budget] = scenarioPicks(dalin, mustela);
-    expect(sensitive.title).toContain("Hassas");
+    expect(sensitive.title).toBe("Yenidoğan / Hassas Ciltler İçin");
+    expect(budget0Title()).toBe("Bütçe Dostu / Günlük Kullanım İçin");
     expect(sensitive.winner).toBe("b");
     expect(sensitive.reasons.join(" ")).toContain("sülfat");
+    expect(sensitive.reasons.join(" ")).toContain("sentetik parfüm içermiyor");
     expect(budget.winner).toBe("a");
     expect(budget.reasons.join(" ")).toContain("%85 daha ucuz");
     expect(budget.reasons.some((r) => r.includes("yıllık"))).toBe(true);
@@ -80,9 +90,10 @@ describe("INCI vurguları (gerçek ürünler için türetme)", () => {
     ]);
   });
   it("kontrol listesi: listeden, yoksa beyandan, ikisi de yoksa bilinmiyor", () => {
-    expect(buildChecklist("baby", "Aqua, Coco-Glucoside, Glycerin")).toMatchObject({ sulfateFree: true, fragranceFree: true });
-    expect(buildChecklist("baby", "Aqua, Sodium Laureth Sulfate, Parfum")).toMatchObject({ sulfateFree: false, fragranceFree: false });
-    expect(buildChecklist("baby", undefined, ["Parfümsüz", "Dermatolojik test"])).toMatchObject({ sulfateFree: null, fragranceFree: true, certificates: ["Dermatolojik test"] });
+    expect(buildChecklist("baby", "Aqua, Coco-Glucoside, Glycerin, Potassium Sorbate")).toMatchObject({ sulfateFree: true, fragranceFree: true, fragrance: { tone: "ok" }, preservative: { tone: "ok", text: "Nazik koruyucu" } });
+    expect(buildChecklist("baby", "Aqua, Sodium Laureth Sulfate, Parfum, Phenoxyethanol")).toMatchObject({ sulfateFree: false, fragranceFree: false, fragrance: { tone: "warn" }, preservative: { tone: "warn", text: "Fenoksietanol" } });
+    expect(buildChecklist("baby", "Aqua, Methylparaben, Glycerin").preservative).toEqual({ tone: "bad", text: "Paraben" });
+    expect(buildChecklist("baby", undefined, ["Parfümsüz", "Dermatolojik test"])).toMatchObject({ sulfateFree: null, fragranceFree: true, certificates: ["Dermatolojik test"], fragrance: { tone: "ok" } });
     expect(buildChecklist("baby", undefined)).toMatchObject({ sulfateFree: null, fragranceFree: null, naturalPct: null });
   });
   it("mapToAnalysis yeni alanları doldurur", () => {
