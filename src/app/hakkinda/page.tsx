@@ -26,7 +26,7 @@ export default function AboutPage() {
       </Section>
 
       <Section title="Güven etiketleri">
-        <p><b>Kaynaklı veri:</b> açık veri tabanından geldi. <b>Üretici beyanı:</b> içerik listesi yok; başlık/açıklamadaki "parfümsüz, klor içermez" gibi beyanlardan tahmin (en çok 85 puan). <b>Doğrulanmamış:</b> otomatik veya kullanıcı katkısı. <b>Arama özeti:</b> arama sonucu özetlerinden tahmin. <b>Örnek veri:</b> gerçek değil, gösterim amaçlı. <b>Veri yok:</b> bulunamadı; skor hesabında nötr değer kullanılır ve içerik verisi yoksa skor hiç gösterilmez.</p>
+        <p><b>Kaynaklı veri:</b> açık veri tabanından geldi. <b>Üretici beyanı:</b> içerik listesi yok; başlık/açıklamadaki “parfümsüz, klor içermez” gibi beyanlardan tahmin (en çok 85 puan). <b>Doğrulanmamış:</b> otomatik veya kullanıcı katkısı. <b>Arama özeti:</b> arama sonucu özetlerinden tahmin. <b>Örnek veri:</b> gerçek değil, gösterim amaçlı. <b>Veri yok:</b> bulunamadı; skor hesabında nötr değer kullanılır ve içerik verisi yoksa skor hiç gösterilmez.</p>
       </Section>
 
       <Section title="Skor nasıl hesaplanır?">
@@ -34,7 +34,7 @@ export default function AboutPage() {
       </Section>
 
       <Section title="İçerik listesi olmayan ürünler (bebek bezi, ıslak mendil)">
-        <p>Bu ürünlerde klasik içerik (INCI) listesi bulunmayabilir. İçerik skoru yalnızca üreticinin beyanlarına dayanır ve doğrulanmamıştır. Beyan da yoksa ve yorum ile fiyat verisi varsa, her zaman sarı gösterilen ve en çok 89 olan "Kullanıcı Deneyimi Skoru" verilir; bu durumda içerik beyanı sınırlı olduğu açıkça belirtilir.</p>
+        <p>Bu ürünlerde klasik içerik (INCI) listesi bulunmayabilir. İçerik skoru yalnızca üreticinin beyanlarına dayanır ve doğrulanmamıştır. Beyan da yoksa ve yorum ile fiyat verisi varsa, her zaman sarı gösterilen ve en çok 89 olan “Kullanıcı Deneyimi Skoru” verilir; bu durumda içerik beyanı sınırlı olduğu açıkça belirtilir.</p>
         <p>Yorum özetlerinde kargo, satıcı ve teslimat cümleleri skora katılmaz. Sosyal medya, markanın kendi sitesi ve yalnızca şikayet toplayan siteler dışlanır.</p>
       </Section>
 
