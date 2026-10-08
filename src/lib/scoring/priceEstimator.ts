@@ -35,9 +35,10 @@ export function parseCount(text?: string): number | null {
 }
 
 // Adet başına referans fiyatlar (TL) — kaba tahmin, piyasaya göre güncellenmeli
-const UNIT_REF: { kind: "bez" | "mendil"; test: RegExp; ref: number }[] = [
-  { kind: "bez", test: /\b(bez|bezi|diaper|nappy)\b/, ref: 5 },
-  { kind: "mendil", test: /\b(mendil|wipes?)\b/, ref: 0.7 },
+// min/max: adet başına makul sınırlar; üstü koli/çoklu paket ya da hatalı snippet, altı eksik/hatalı sayı sayılır
+const UNIT_REF: { kind: "bez" | "mendil"; test: RegExp; ref: number; min: number; max: number }[] = [
+  { kind: "bez", test: /\b(bez|bezi|diaper|nappy)\b/, ref: 5, min: 1.5, max: 15 },
+  { kind: "mendil", test: /\b(mendil|wipes?)\b/, ref: 0.7, min: 0.1, max: 3 },
 ];
 export const unitKind = (name: string) => UNIT_REF.find((u) => u.test.test(normTr(name)));
 export const fmtTl = (n: number) => n.toFixed(2).replace(".", ",").replace(/,00$/, "");
@@ -48,9 +49,10 @@ const scoreOf = (ratio: number) => Math.round(Math.min(100, Math.max(0, 100 - 40
 
 /** Adet başına fiyat: bez/mendil için referansa göre skor ve "4,2 TL / bez" metni. */
 export function estimateUnitPrice(prices: number[], count: number, kind: "bez" | "mendil"): UnitPriceEstimate | null {
-  const ref = UNIT_REF.find((u) => u.kind === kind)!.ref;
+  const { ref, min, max } = UNIT_REF.find((u) => u.kind === kind)!;
   const expected = ref * count;
-  const usable = prices.filter((p) => p >= expected * 0.2 && p <= expected * 5);
+  // Adet başına fiyatı sınır dışı olanlar (ör. 36'lı paket için 1500 TL = 41 TL/bez) medyandan dışlanır
+  const usable = prices.filter((p) => p >= expected * 0.2 && p <= expected * 5 && p / count >= min && p / count <= max);
   if (usable.length === 0) return null;
   const med = median(usable), unit = med / count;
   return { priceScore: scoreOf(unit / ref), medianPrice: Math.round(med * 100) / 100, basis: "unit", unitText: `${fmtTl(unit)} TL / ${kind}` };
@@ -74,6 +76,50 @@ export function extractPrices(text: string): number[] {
   return out;
 }
 
+export interface PriceMention { value: number; labeled: boolean; cheapest: boolean }
+
+/** Fiyatları bağlamıyla çıkarır: "Fiyat : ₺151,50" etiketli, "en ucuz ..." / "başlayan" ifadeleri tek ürün fiyatı değildir. */
+export function extractPriceMentions(text: string): PriceMention[] {
+  const out: PriceMention[] = [];
+  const num = "(\\d{1,3}(?:\\.\\d{3})*(?:,\\d{1,2})?|\\d+(?:,\\d{1,2})?)";
+  for (const m of text.matchAll(new RegExp(`${num}\\s*(?:TL|₺)|(?:₺|TL)\\s*${num}`, "gi"))) {
+    const v = Number((m[1] ?? m[2]).replace(/\./g, "").replace(",", "."));
+    if (!(v >= 5 && v < 100000)) continue;
+    const before = text.slice(Math.max(0, (m.index ?? 0) - 30), m.index ?? 0);
+    out.push({ value: v, labeled: /fiyat|sepet|tutar|ücret/i.test(before), cheapest: /en\s+ucuz|başlayan|başlangıç|itibaren/i.test(before) });
+  }
+  return out;
+}
+
+const words = (s: string) => new Set(normTr(s).split(/[^a-z0-9]+/).filter((w) => w.length > 1));
+const sim = (a: string, b: string) => {
+  const x = words(a), y = words(b);
+  const inter = [...x].filter((w) => y.has(w)).length;
+  return inter / (x.size + y.size - inter || 1);
+};
+// Koli / çoklu paket / toptan satış metinleri tek ürün fiyatı değildir
+const BULK = /koli|çoklu\s+paket|\b\d+\s*x\s*\d+|\b\d+\s*paket\b|\btoptan\s+fiyat/i;
+
+/**
+ * Arama sonuçlarından tekil ürün fiyatını seçer. Öncelik: ürün başlığıyla eşleşen + "Fiyat:" etiketli + koli olmayan,
+ * sonra yalnızca eşleşen, sonra eşleşme aramayan; hiçbiri yoksa tümü. "En ucuz / başlayan" fiyatlar son sıraya düşer.
+ */
+export function selectPrices(hits: { title: string; snippet: string }[], productName: string): number[] {
+  const pool = hits.flatMap((h) => {
+    const text = `${h.title}. ${h.snippet}`;
+    const similar = sim(h.title, productName) >= 0.3;
+    const bulk = BULK.test(text);
+    return extractPriceMentions(text).map((m) => ({ ...m, similar, bulk }));
+  });
+  const tiers = [
+    pool.filter((m) => m.similar && m.labeled && !m.bulk && !m.cheapest),
+    pool.filter((m) => m.similar && !m.bulk && !m.cheapest),
+    pool.filter((m) => !m.bulk && !m.cheapest),
+    pool,
+  ];
+  return (tiers.find((t) => t.length > 0) ?? []).map((m) => m.value);
+}
+
 /** 100 = referansın yarısı veya daha ucuz, 80 = referans fiyat, 40 = referansın 2 katı (referanslar kaba tahmindir). */
 export function estimatePrice(category: Category, prices: number[], amount: number | null): PriceEstimate | null {
   const ref = REF[category];
@@ -85,4 +131,15 @@ export function estimatePrice(category: Category, prices: number[], amount: numb
   const ratio = med / expected;
   const priceScore = scoreOf(ratio);
   return { priceScore, medianPrice: Math.round(med * 100) / 100, basis: amount ? "unit" : "pack" };
+}
+
+/** Kategori ortalaması (TL / g veya ml); bez/mendil için adet başına referans. */
+export const categoryAvgPerUnit = (category: Category) => REF[category].per100 / 100;
+export const unitRefPerPiece = (kind: "bez" | "mendil") => UNIT_REF.find((u) => u.kind === kind)!.ref;
+
+/** Kategori ortalamasına göre fark: "%63 daha ucuz" / "%12 daha pahalı" (|fark| < %3 ise ortalamaya yakın). */
+export function vsAverage(value: number, avg: number): { pct: number; text: string; cheaper: boolean } {
+  const pct = Math.round((1 - value / avg) * 100);
+  const abs = Math.abs(pct);
+  return { pct, cheaper: pct >= 0, text: abs < 3 ? "kategori ortalamasına yakın" : `kategori ortalamasına göre %${abs} ${pct > 0 ? "daha ucuz" : "daha pahalı"}` };
 }

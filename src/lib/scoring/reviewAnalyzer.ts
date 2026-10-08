@@ -56,6 +56,15 @@ export function stripDelivery(text: string): string {
     .join(". ");
 }
 
+// Pazarlama/katalog dili: kullanıcı yorumu değil, ürün tanıtım metni
+const PROMO = /one cikar|tercihidir|kalitesiyle|teknolojisi|sunan yapisiyla|sayesinde|yerli uretim|yonden esnek|ozel tasarim|ustun\b|garantisi|ideal cozum|uzman\w* tarafindan|gelistirilmis|urunudur|\bsunar\b|\bsaglar\b/;
+export const isPromotional = (text: string) => PROMO.test(normTr(text));
+
+// Gerçek yorum: birinci şahıs / deneyim bildiren ifadeler ("aldık", "kullandım", "memnun kaldım", "pişik yaptı", "bebeğime")
+// Genel "-dım/-tim" eki "üretim", "plastik" gibi isimlerle çakışır; bilinen deneyim fiilleri kullanılır
+const EXPERIENCE = /\b(?:aldi|kullandi|denedi|begendi|kaldi|yasadi|bitirdi|gordu|verdi|ettir)[mk]\b|(?:iyorum|uyorum|iyoruz|uyoruz)\b|bebeg(?:im|ime|imde|imin)|cocugum|oglum|kizim|memnun(?:um|uz)\b|tavsiye ederim|sizdir|pisik yap|alerji yap|kizariklik yap|tahris yap/;
+export const isFirstPersonExperience = (text: string) => EXPERIENCE.test(normTr(text));
+
 const NEGATION = /^.{0,25}?(yapmadi|yapmiyor|olmadi|yok\b|degil)/;
 
 // Olumsuzlama ("alerji yapmadı") şikayet sayılmaz

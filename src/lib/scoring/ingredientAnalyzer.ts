@@ -21,7 +21,7 @@ const FOOD: RiskRule[] = [
 ];
 
 // Temizlik ürünleri kozmetik kural setini paylaşır
-const RULES: Record<Category, RiskRule[]> = { baby: COSMETIC, cosmetics: COSMETIC, cleaning: COSMETIC, food: FOOD };
+export const RULES: Record<Category, RiskRule[]> = { baby: COSMETIC, cosmetics: COSMETIC, cleaning: COSMETIC, food: FOOD };
 
 /** Ham içerik metnini tarar; her riskli bileşen kendi cezasını düşer (tekrar saymaz). */
 export function analyzeIngredients(category: Category, text: string | undefined, extraTags: string[] = []): IngredientAnalysis {

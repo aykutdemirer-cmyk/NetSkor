@@ -34,7 +34,7 @@ const serpMock = () => vi.fn(async (u: string) => {
       { title: "Sarelle Kakaolu Fındık Ezmesi 350 g 8690000000099", link: "https://a.com/1", snippet: "Barkod: 8690000000099" },
       { title: "Sarelle Kakaolu Fındık Ezmesi 350 g - Migros", link: "https://b.com/2", snippet: "EAN 8690000000099" },
     ] }));
-    return new Response(JSON.stringify({ organic_results: [{ title: "Yorum", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat" }] }));
+    return new Response(JSON.stringify({ organic_results: [{ title: "Yorum", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat, çok memnun kaldım" }] }));
   }
   return new Response(JSON.stringify({ status: 0 })); // Open Facts: kayıt yok
 }) as unknown as typeof fetch;

@@ -1,6 +1,6 @@
 import type { Category } from "@/types";
 import { searchWeb } from "./searchProviders";
-import { extractPrices } from "@/lib/scoring/priceEstimator";
+import { selectPrices } from "@/lib/scoring/priceEstimator";
 import type { LookupResult } from "./productLookup";
 
 type Fetcher = typeof fetch;
@@ -99,7 +99,7 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
     hits.forEach((h) => add({
       title: cleanTitle(h.title), link: h.link, image: h.image, snippet: h.snippet,
       trusted: `${h.title} ${h.snippet} ${h.link}`.includes(barcode),
-      prices: extractPrices(`${h.title} ${h.snippet}`),
+      prices: [],
     }));
     if (pool.filter((c) => c.trusted).length >= 2) break;
   }
@@ -116,7 +116,7 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
   }
 
   let image = chosen.find((c) => c.image)?.image;
-  let prices = chosen.flatMap((c) => c.prices);
+  let prices = selectPrices(chosen.map((c) => ({ title: c.title, snippet: c.snippet ?? "" })), name);
 
   // Eksik görsel/fiyat için ürün adıyla Shopping; ada benzemeyen sonuçlar (başka ürünler) atılır
   const key = env.SERPAPI_KEY;

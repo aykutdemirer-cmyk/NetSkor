@@ -1,7 +1,7 @@
 import { normTr } from "@/lib/text";
 import { searchWeb, type WebHit } from "./searchProviders";
-import { extractPrices } from "@/lib/scoring/priceEstimator";
-import { inferRating, stripDelivery } from "@/lib/scoring/reviewAnalyzer";
+import { selectPrices } from "@/lib/scoring/priceEstimator";
+import { inferRating, isFirstPersonExperience, isPromotional, stripDelivery } from "@/lib/scoring/reviewAnalyzer";
 import type { Category, Review, ReviewSource } from "@/types";
 
 export interface SearchInput { productName: string; brand: string; category: Category }
@@ -110,11 +110,16 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
   const results = await Promise.all(platforms.map((p) => searchWeb(`${p.template(q)} ${ex}`, env, f)));
   if (results.every((r) => r === null)) return demoReviews(input, barcode); // anahtar yok ya da tüm sağlayıcılar başarısız
 
-  let live = collect(results.flatMap((r) => r?.hits ?? []), input);
+  // Aynı sayfa birden çok sorguda çıkabilir: fiyat medyanını çarpıtmasın diye tekilleştirilir
+  const dedupe = (hs: WebHit[]) => [...new Map(hs.map((h) => [`${h.link}|${h.title}`, h])).values()];
+  const rawHits = dedupe(results.flatMap((r) => r?.hits ?? []));
+  let live = collect(rawHits, input);
+  let priceHits = rawHits;
   if (live.hits.length === 0) {
     // Uzun ürün adı sonuç vermemiş olabilir: ilk 4 kelimeyle tek bir genel arama daha dene
     const short = await searchWeb(`${q.split(/\s+/).slice(0, 4).join(" ")} yorumlar ${ex}`, env, f);
     live = collect(short?.hits ?? [], input);
+    priceHits = dedupe([...rawHits, ...(short?.hits ?? [])]);
     if (live.hits.length === 0) return demoReviews(input, barcode);
   }
 
@@ -123,7 +128,9 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
     verifiedBuyer: false, rating: live.rate(h) as 1 | 2 | 3 | 4 | 5, text: h.snippet, flags: [],
   }));
   if (input.category === "baby") reviews.sort((a, b) => PRIORITY[a.source] - PRIORITY[b.source]); // sort kararlı: eşit kaynakta sıra korunur
-  return { mode: "live", reviews, prices: live.hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`)) };
+  // Fiyat, yorum olmayan ürün sayfası özetlerinden de alınır; tekil ürün fiyatı öncelikli
+  const prices = selectPrices(priceHits.filter((h) => h.link && !blocked(h.link, input.brand)), q);
+  return { mode: "live", reviews, prices };
 }
 
 /** Sonuçları yorum olarak kullanılabilir olanlara indirger (tekrar, çöp metin, teslimat, duygusuz özet elenir). */
@@ -132,6 +139,8 @@ function collect(raw: WebHit[], input: SearchInput) {
   const rate = (h: WebHit) => (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category));
   const hits = raw.filter((h) => {
     if (!h.snippet || !h.link || blocked(h.link, input.brand) || !isReviewLike(h.snippet)) return false;
+    if (isPromotional(h.snippet)) return false; // katalog/pazarlama metni, kullanıcı yorumu değil
+    if (!h.rating && !isFirstPersonExperience(h.snippet)) return false; // deneyim bildirmeyen cümleler yorum sayılmaz
     const k = `${h.link}|${h.snippet}`;
     if (seen.has(k)) return false; // aynı sayfa birden çok sorguda çıkabilir
     seen.add(k);

@@ -255,3 +255,20 @@ describe("kara liste, teslimat filtresi, forum önceliği", () => {
     expect(r.reviews[1].source).toBe("trendyol");
   });
 });
+
+describe("tanıtım metinleri yorum havuzuna girmez; fiyat tekil üründen gelir", () => {
+  const brave = (results: { title: string; url: string; description: string }[]) =>
+    vi.fn(async () => new Response(JSON.stringify({ web: { results } }))) as unknown as typeof fetch;
+  it("Hepsiburada katalog metni elenir, gerçek yorum kalır; fiyat koliden değil tekil üründen", async () => {
+    const f = brave([
+      { title: "Molfix Bebek Bezi Mini 36'lı", url: "https://www.hepsiburada.com/a", description: "Yerli üretim kalitesiyle öne çıkan bebek bezi. Bezin 5 yönden esnek yapısı sayesinde rahat hareket." },
+      { title: "Molfix Bebek Bezi Mini 36'lı Koli", url: "https://www.hepsiburada.com/b", description: "4'lü koli fiyatı 1.499,90 TL" },
+      { title: "Molfix Bebek Bezi Mini 36'lı", url: "https://www.trendyol.com/c", description: "Bebeğime aldık, pişik yapmadı, çok memnun kaldık. Fiyat : ₺151,50" },
+    ]);
+    const r = await searchReviews({ productName: "Molfix Bebek Bezi Mini 36'lı", brand: "Molfix", category: "baby" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r.mode).toBe("live");
+    expect(r.reviews).toHaveLength(1);
+    expect(r.reviews[0].text).toContain("Bebeğime aldık");
+    expect(r.prices).toEqual([151.5]);
+  });
+});

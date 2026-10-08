@@ -81,7 +81,7 @@ describe("enrich", () => {
     expect(e.estimated?.value).toBe(false);
   });
   it("canlı modda tahmin bayrakları kalkar, skor dinamik", async () => {
-    const f = vi.fn(async () => new Response(JSON.stringify({ organic_results: [{ title: "t", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat 120 TL" }] }))) as unknown as typeof fetch;
+    const f = vi.fn(async () => new Response(JSON.stringify({ organic_results: [{ title: "t", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat, çok memnun kaldım. Fiyat : 120 TL" }] }))) as unknown as typeof fetch;
     const base = mapToAnalysis({ barcode: "8690504000001", name: "Test Krem", brand: "Marka", ingredientsText: "Aqua, Glycerin", analysisTags: [], quantity: "125 g", source: "openbeautyfacts" }, "baby");
     const e = await enrichWithReviews(base, f, { SERPAPI_KEY: "k" });
     expect(e.reviewMode).toBe("live");

@@ -54,6 +54,11 @@ export interface ProductAnalysis {
   cons: string[];
   inputs: ScoreInputs;
   unitPrice?: string; // örn. "4,2 TL / bez"
+  inciHighlights?: InciHighlight[];
+  pricePerUnit?: PricePerUnit;
+  categoryAveragePrice?: number; // aynı birimde (TL / birim) kategori ortalaması, tahmini
+  ageGroupSatisfaction?: AgeSatisfaction[];
+  featureChecklist?: FeatureChecklist;
   contentBasis?: "inci" | "claims"; // claims: içerik skoru üretici beyanlarına dayanır
   claims?: string[]; // üretici beyanları (parfümsüz, klor içermez...)
   productSource?: "openfacts" | "web" | "user"; // web: ad/içerik internet aramasından çıkarıldı, doğrulanmadı
@@ -61,4 +66,15 @@ export interface ProductAnalysis {
   estimated?: { reviews: boolean; value: boolean; ingredients: boolean }; // gerçek veri yoksa nötr değer kullanıldı
   noSting: number; // göz yakmama (0-100)
   reviews: Review[];
+}
+
+// --- Zengin tüketici verileri (ürün detayı ve karşılaştırma) ---
+export interface InciHighlight { name: string; tone: "good" | "warn" | "risk"; note?: string }
+export interface PricePerUnit { value: number; unit: "ml" | "g" | "adet"; label?: string } // TL / birim
+export interface AgeSatisfaction { group: string; pct: number }
+export interface FeatureChecklist {
+  sulfateFree: boolean | null; // null = bilinmiyor
+  fragranceFree: boolean | null;
+  naturalPct: number | null;
+  certificates: string[];
 }

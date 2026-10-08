@@ -70,7 +70,7 @@ describe("enrichProduct önbellek", () => {
   });
   it("canlı sonuç saklanır", async () => {
     const f = vi.fn(async (u: string) => u.includes("serpapi")
-      ? new Response(JSON.stringify({ organic_results: [{ title: "t", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat 120 TL" }] }))
+      ? new Response(JSON.stringify({ organic_results: [{ title: "t", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat, çok memnun kaldım. Fiyat : 120 TL" }] }))
       : new Response(JSON.stringify({ status: 1, product: { code: "9990000000778", product_name: "Z Krem", brands: "Y", ingredients_text: "Aqua", quantity: "100 ml" } }))) as unknown as typeof fetch;
     const env = { SERPAPI_KEY: "k" };
     await enrichProduct("9990000000778", "baby", f, env);
