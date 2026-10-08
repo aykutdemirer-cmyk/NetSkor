@@ -24,11 +24,13 @@ export function parseQuantity(q?: string): number | null {
   return (m[1] ? Number(m[1]) : 1) * Number(m[2]) * mult;
 }
 
-/** Fiyat snippet'larından ("249,90 TL") sayıları çıkarır. */
+/** Fiyat snippet'larından ("249,90 TL", "₺151,50") sayıları çıkarır. */
 export function extractPrices(text: string): number[] {
   const out: number[] = [];
-  for (const m of text.matchAll(/(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)\s*(?:TL|₺)/gi)) {
-    const v = Number(m[1].replace(/\./g, "").replace(",", "."));
+  const num = "(\\d{1,3}(?:\\.\\d{3})*(?:,\\d{1,2})?|\\d+(?:,\\d{1,2})?)";
+  // Para birimi sayıdan sonra ("151,50 TL") ya da önce ("₺151,50", "TL 151,50")
+  for (const m of text.matchAll(new RegExp(`${num}\\s*(?:TL|₺)|(?:₺|TL)\\s*${num}`, "gi"))) {
+    const v = Number((m[1] ?? m[2]).replace(/\./g, "").replace(",", "."));
     if (v >= 5 && v < 100000) out.push(v);
   }
   return out;

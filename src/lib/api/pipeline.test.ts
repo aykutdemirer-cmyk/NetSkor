@@ -30,7 +30,7 @@ describe("reviewAnalyzer", () => {
 });
 
 describe("priceEstimator", () => {
-  it("snippet fiyatları", () => expect(extractPrices("Sudocrem 1.249,90 TL, kargo 29 ₺, 3 TL")).toEqual([1249.9, 29]));
+  it("snippet fiyatları", () => expect(extractPrices("Sudocrem 1.249,90 TL, kargo 29 ₺, 3 TL, Fiyat : ₺151,50")).toEqual([1249.9, 29, 151.5]));
   it("miktar", () => { expect(parseQuantity("2 x 125 g")).toBe(250); expect(parseQuantity("1,5 L")).toBe(1500); });
   it("birim fiyat ucuz -> yüksek skor", () => {
     expect(estimatePrice("baby", [139], 700)!.priceScore).toBe(100);

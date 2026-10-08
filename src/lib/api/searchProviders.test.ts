@@ -72,3 +72,61 @@ describe("entegrasyon", () => {
     expect(r?.ingredientsText).toContain("palm yağı");
   });
 });
+
+describe("webLookup doğrulama ve tanılama", () => {
+  const brave = (results: { title: string; url: string; description: string }[]) =>
+    vi.fn(async () => new Response(JSON.stringify({ web: { results } }))) as unknown as typeof fetch;
+  const env = { BRAVE_SEARCH_API_KEY: "b" };
+
+  it("barkodu içeren sonuçlar güvenilir sayılır; izleme adımları kaydedilir", async () => {
+    const f = brave([
+      { title: "Ürün X 250 ml - Site A", url: "https://a.com/p/8690536821129", description: "Barkod 8690536821129" },
+      { title: "Ürün X 250 ml Fiyatı | Site B", url: "https://b.com/x", description: "EAN: 8690536821129. 89 TL" },
+      { title: "Alakasız Sayfa Başlığı", url: "https://c.com", description: "başka şey" },
+    ]);
+    const trace: import("./webLookup").TraceStep[] = [];
+    const r = await webLookupProduct("8690536821129", "baby", f, env, trace);
+    expect(r?.name).toContain("Ürün X");
+    expect(r?.prices).toEqual([89]); // yalnızca güvenilir sonuçlardan
+    expect(trace[0]).toMatchObject({ via: "brave", count: 3 });
+  });
+
+  it("barkodsuz ve birbirine uymayan sonuçlar reddedilir (yanlış ürün riski)", async () => {
+    const f = brave([
+      { title: "Çikolata Gofret Tanıtım", url: "https://a.com", description: "x" },
+      { title: "Bahçe Hortumu Modelleri", url: "https://b.com", description: "y" },
+      { title: "Laptop Çantası İncele", url: "https://c.com", description: "z" },
+    ]);
+    expect(await webLookupProduct("8690536821129", "baby", f, env)).toBeNull();
+  });
+
+  it("barkodsuz ama birbirine benzeyen başlıklar kabul edilir", async () => {
+    const f = brave([
+      { title: "Sarelle Kakaolu Fındık Ezmesi 350 g", url: "https://a.com", description: "" },
+      { title: "Sarelle Kakaolu Fındık Ezmesi 350g", url: "https://b.com", description: "" },
+      { title: "Sarelle Fındık Ezmesi Kakaolu 350 g", url: "https://c.com", description: "" },
+    ]);
+    expect((await webLookupProduct("8690536821129", "food", f, env))?.name).toContain("Sarelle");
+  });
+});
+
+describe("gerçek Google sonucu: Molfix 8690536821129", () => {
+  it("başlıktan barkod temizlenir, ₺ öneki fiyat okunur, kategori bebek", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ web: { results: [
+      { title: "Molfix Bebek Bezi Jumbo 2 Mini 36'lı 8690536821129", url: "https://www.toptantr.com/molfix", description: "Bebem natural'in emici bölgesinde kullanılan doğal bambu" },
+      { title: "Molfix Bantlı Bebek Bezi 2 Numara 36 Adet Jumbo Paket", url: "https://www.asyasanalmarket.com/molfix", description: "Barkod : 8690536821129. Sepetteki Son Fiyat. Fiyat : ₺151,50(KDV Dahil). Sepet Fiyatı : ADET" },
+    ] } }))) as unknown as typeof fetch;
+    const { enrichProduct } = await import("./enrichProduct");
+    const { _clearMemoryCache } = await import("@/lib/cache");
+    _clearMemoryCache();
+    const r = await webLookupProduct("8690536821129", "food", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r?.name).not.toMatch(/\d{8,}/);
+    expect(r?.name).toContain("Molfix");
+    expect(r?.prices).toEqual([151.5]);
+    // yalnızca web bulursa: bulunamayan Open Facts + web -> bebek bezi bebek kategorisinde
+    const miss = vi.fn(async (u: string) => (u.includes("openfoodfacts") || u.includes("openbeautyfacts") ? new Response(JSON.stringify({ status: 0 })) : (f as unknown as (u: string) => Promise<Response>)(u))) as unknown as typeof fetch;
+    const full = await enrichProduct("8690536821129", "food", miss, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(full?.product.category).toBe("baby");
+    expect(full?.productSource).toBe("web");
+  });
+});

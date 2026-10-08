@@ -21,7 +21,8 @@ const NOISE = /(?:^|\s)(?:fiyatları|fiyatı|fiyat|satın al|sipariş|online|kar
 /** "Nutella 400 g - Fiyatı | Migros" -> "Nutella 400 g" */
 export function cleanTitle(t: string): string {
   const first = t.split(/\s[-–—|•:]\s/)[0];
-  return first.replace(NOISE, "").replace(/\s{2,}/g, " ").trim().slice(0, 90);
+  // Başlıkta geçen barkod numarası ürün adına karışmasın
+  return first.replace(/\b\d{8,14}\b/g, "").replace(NOISE, "").replace(/\s{2,}/g, " ").trim().slice(0, 90);
 }
 
 const tokens = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9çğıöşü]+/i).filter((w) => w.length > 1));
@@ -51,40 +52,74 @@ export function extractIngredients(text: string): string | undefined {
 
 const quantityOf = (name: string) => name.match(/(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|lt|l)\b/i)?.[0];
 
-/** Open Facts'te bulunamayan barkodu internet aramasıyla çözer. Önce SerpAPI Shopping (görsel+fiyat), olmazsa genel arama zinciri. */
-export async function webLookupProduct(barcode: string, _category: Category, f: Fetcher = fetch, env: Env = process.env): Promise<(LookupResult & { prices: number[] }) | null> {
+export interface TraceStep { query: string; via: string; count: number; titles: string[] }
+
+interface Candidate { title: string; link: string; trusted: boolean; prices: number[] }
+
+const jaccard = (a: string, b: string) => {
+  const x = tokens(a), y = tokens(b);
+  const inter = [...x].filter((w) => y.has(w)).length;
+  return inter / (x.size + y.size - inter || 1);
+};
+
+/** Barkodu içermeyen sonuçlar yalnızca en az 3 başlık birbirine benziyorsa kabul edilir (yanlış ürün riskini azaltır). */
+function agree(titles: string[]): boolean {
+  if (titles.length < 3) return false;
+  const top = titles.slice(0, 4);
+  let sum = 0, n = 0;
+  for (let i = 0; i < top.length; i++) for (let j = i + 1; j < top.length; j++) { sum += jaccard(top[i], top[j]); n++; }
+  return sum / n >= 0.3;
+}
+
+/** Open Facts'te bulunamayan barkodu internet aramasıyla çözer. SerpAPI Shopping (güvenilir eşleşme), olmazsa genel arama zinciri. */
+export async function webLookupProduct(barcode: string, _category: Category, f: Fetcher = fetch, env: Env = process.env, trace?: TraceStep[]): Promise<(LookupResult & { prices: number[] }) | null> {
   if (!/^\d{8,14}$/.test(barcode)) return null;
 
-  let titles: string[] = [];
+  const pool: Candidate[] = [];
+  const seen = new Set<string>();
+  const add = (c: Candidate) => { const k = `${c.title}|${c.link}`; if (!seen.has(k)) { seen.add(k); pool.push(c); } };
+  const note = (query: string, via: string, titles: string[]) => trace?.push({ query, via, count: titles.length, titles: titles.slice(0, 5) });
   let image: string | undefined;
-  let prices: number[] = [];
 
   const key = env.SERPAPI_KEY;
   if (key) {
     try {
       const items = ((await serp({ engine: "google_shopping", q: barcode }, key, f)).shopping_results ?? []).filter((r) => r.title);
-      titles = items.map((r) => cleanTitle(r.title!));
+      note(barcode, "serpapi-shopping", items.map((r) => r.title!));
       image = items.find((r) => r.thumbnail)?.thumbnail;
-      prices = items.map((r) => r.extracted_price).filter((n): n is number => typeof n === "number");
+      // Google Shopping GTIN ile eşleştirir; başlıkta barkod geçmese de güvenilir sayılır
+      items.forEach((r) => add({ title: cleanTitle(r.title!), link: "", trusted: true, prices: typeof r.extracted_price === "number" ? [r.extracted_price] : [] }));
     } catch (e) {
       console.error("[webLookup] shopping başarısız:", e instanceof Error ? e.message : e);
     }
   }
 
-  if (titles.length === 0) {
-    const r = await searchWeb(`"${barcode}" ürün`, env, f); // yedek zincir: Serper / Brave / Google CSE
-    if (!r) return null;
+  // Genel arama: iki sorgu biçimi; sonuçta barkod geçiyorsa "doğrulanmış" sayılır
+  for (const q of pool.length ? [] : [barcode, `"${barcode}" barkod`]) {
+    const r = await searchWeb(q, env, f); // yedek zincir: Serper / Brave / Google CSE
+    if (!r) { note(q, "yok", []); break; }
     const hits = r.hits.filter((h) => h.title);
-    titles = hits.map((h) => cleanTitle(h.title));
-    prices = hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`));
+    note(q, r.provider, hits.map((h) => h.title));
+    hits.forEach((h) => add({
+      title: cleanTitle(h.title), link: h.link,
+      trusted: `${h.title} ${h.snippet} ${h.link}`.includes(barcode),
+      prices: extractPrices(`${h.title} ${h.snippet}`),
+    }));
+    if (pool.filter((c) => c.trusted).length >= 2) break;
   }
 
-  const name = consensusTitle(titles);
-  if (!name || name.length < 3) return null;
+  const trusted = pool.filter((c) => c.trusted);
+  const chosen = trusted.length > 0 ? trusted : agree(pool.map((c) => c.title)) ? pool : [];
+  const name = consensusTitle(chosen.map((c) => c.title));
+  if (!name || name.length < 3) {
+    console.error(`[webLookup] ürün çıkarılamadı barkod=${barcode} aday=${pool.length} güvenilir=${trusted.length}`);
+    return null;
+  }
 
   // İçerik listesi: ayrı bir arama (en iyi çaba)
   const ing = await searchWeb(`${name} içindekiler`, env, f);
   const ingredientsText = ing?.hits.map((h) => extractIngredients(h.snippet)).find(Boolean);
+  note(`${name} içindekiler`, ing?.provider ?? "yok", (ing?.hits ?? []).map((h) => h.title));
 
   return {
     barcode,
@@ -95,6 +130,6 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
     analysisTags: [],
     quantity: quantityOf(name),
     source: "web",
-    prices,
+    prices: chosen.flatMap((c) => c.prices),
   };
 }
