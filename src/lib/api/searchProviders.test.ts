@@ -130,3 +130,31 @@ describe("gerçek Google sonucu: Molfix 8690536821129", () => {
     expect(full?.productSource).toBe("web");
   });
 });
+
+describe("Molfix regresyonları", () => {
+  const brave = (results: { title: string; url: string; description: string }[]) =>
+    vi.fn(async () => new Response(JSON.stringify({ web: { results } }))) as unknown as typeof fetch;
+
+  it("Türkçe kaynak tercih edilir; '3-6 kg' aralığı gramaj sayılmaz", async () => {
+    const f = brave([
+      { title: 'Molfix Çaga arlygy "2 mini" 3-6 kg 36 sany 8690536821129', url: "https://kz-market.kz/p", description: "8690536821129" },
+      { title: "Molfix Bebek Bezi Jumbo 2 Mini 3-6 kg 36'lı 8690536821129", url: "https://www.toptantr.com.tr/m", description: "doğal bambu 8690536821129" },
+    ]);
+    const r = await webLookupProduct("8690536821129", "baby", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(r?.name).toContain("Bebek Bezi");
+    expect(r?.name).not.toContain("sany");
+    expect(r?.quantity).toBeUndefined();
+  });
+
+  it("yorum sorgusunda marka tekrarlanmaz; sonuç yoksa kısa sorguyla yeniden denenir", async () => {
+    const urls: string[] = [];
+    const f = vi.fn(async (u: string) => {
+      urls.push(decodeURIComponent(u));
+      const short = decodeURIComponent(u).endsWith("Molfix Bebek Bezi Jumbo yorumlar&country=tr&search_lang=tr&count=5");
+      return new Response(JSON.stringify({ web: { results: short ? [{ title: "t", url: "https://www.trendyol.com/p", description: "Çok memnun kaldım, uygun fiyat" }] : [] } }));
+    }) as unknown as typeof fetch;
+    const r = await searchReviews({ productName: "Molfix Bebek Bezi Jumbo Mini 36'lı", brand: "Molfix", category: "baby" }, "1", f, { BRAVE_SEARCH_API_KEY: "b" });
+    expect(urls[0]).not.toContain("Molfix Molfix");
+    expect(r.mode).toBe("live");
+  });
+});

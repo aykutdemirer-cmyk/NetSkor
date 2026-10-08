@@ -65,12 +65,28 @@ describe("reviewSearch", () => {
 });
 
 describe("enrich", () => {
-  it("tahmin bayrakları kalkar, skor dinamik", async () => {
+  it("anahtar yokken (demo): uydurma yorum/uyarı gösterilmez, yorum ve fiyat 'veri yok'", async () => {
     const base = mapToAnalysis({ barcode: "8690504000001", name: "Test Krem", brand: "Marka", ingredientsText: "Aqua, Glycerin", analysisTags: [], quantity: "125 g", source: "openbeautyfacts" }, "baby");
     const e = await enrichWithReviews(base, vi.fn() as unknown as typeof fetch, {});
     expect(e.reviewMode).toBe("demo");
-    expect(e.estimated).toEqual({ ingredients: false, reviews: false, value: false });
+    expect(e.reviews).toEqual([]);
+    expect(e.cons).toEqual(base.cons);
+    expect(e.pros).toEqual(base.pros);
+    expect(e.estimated).toEqual({ ingredients: false, reviews: true, value: true });
+  });
+  it("demo modda web fiyatı varsa kullanılır", async () => {
+    const base = mapToAnalysis({ barcode: "1", name: "Test", brand: "M", ingredientsText: "Aqua", analysisTags: [], source: "web" }, "baby");
+    const e = await enrichWithReviews(base, vi.fn() as unknown as typeof fetch, {}, [150]);
+    expect(e.product.priceTry).toBe(150);
+    expect(e.estimated?.value).toBe(false);
+  });
+  it("canlı modda tahmin bayrakları kalkar, skor dinamik", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ organic_results: [{ title: "t", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat 120 TL" }] }))) as unknown as typeof fetch;
+    const base = mapToAnalysis({ barcode: "8690504000001", name: "Test Krem", brand: "Marka", ingredientsText: "Aqua, Glycerin", analysisTags: [], quantity: "125 g", source: "openbeautyfacts" }, "baby");
+    const e = await enrichWithReviews(base, f, { SERPAPI_KEY: "k" });
+    expect(e.reviewMode).toBe("live");
     expect(e.reviews.length).toBeGreaterThan(0);
+    expect(e.estimated).toEqual({ ingredients: false, reviews: false, value: false });
     expect(calculateScore("baby", e.inputs).total).toBeGreaterThan(0);
   });
 });

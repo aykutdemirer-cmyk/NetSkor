@@ -72,7 +72,8 @@ export function demoReviews(input: SearchInput, barcode: string): SearchOutput {
 }
 
 export async function searchReviews(input: SearchInput, barcode: string, f: Fetcher = fetch, env: Env = process.env): Promise<SearchOutput> {
-  const q = `${input.brand} ${input.productName}`.trim();
+  // Ad zaten markayla başlıyorsa markayı tekrarlama ("Molfix Molfix ...")
+  const q = (input.productName.toLowerCase().startsWith(input.brand.toLowerCase()) ? input.productName : `${input.brand} ${input.productName}`).trim();
   // 4 platform sorgusu; her biri kendi sağlayıcı zincirini kullanır (kota biterse yedeğe geçer)
   const results = await Promise.all(PLATFORMS.map((p) => searchWeb(p.template(q), env, f)));
   if (results.every((r) => r === null)) return demoReviews(input, barcode); // anahtar yok ya da tüm sağlayıcılar başarısız
@@ -83,6 +84,16 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
     verifiedBuyer: false, rating: (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category)) as 1 | 2 | 3 | 4 | 5,
     text: h.snippet, flags: [],
   }));
-  if (reviews.length === 0) return demoReviews(input, barcode);
+  if (reviews.length === 0) {
+    // Uzun ürün adı sonuç vermemiş olabilir: ilk 4 kelimeyle tek bir genel arama daha dene
+    const short = await searchWeb(`${q.split(/\s+/).slice(0, 4).join(" ")} yorumlar`, env, f);
+    const extra = (short?.hits ?? []).filter((h) => h.snippet && h.link && !blocked(h.link));
+    if (extra.length === 0) return demoReviews(input, barcode);
+    return {
+      mode: "live",
+      reviews: extra.map((h, i) => ({ id: `live-${barcode}-s${i}`, source: sourceOf(h.link), author: new URL(h.link).hostname.replace(/^www\./, ""), verifiedBuyer: false, rating: (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category)) as 1 | 2 | 3 | 4 | 5, text: h.snippet, flags: [] })),
+      prices: extra.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`)),
+    };
+  }
   return { mode: "live", reviews, prices: hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`)) };
 }

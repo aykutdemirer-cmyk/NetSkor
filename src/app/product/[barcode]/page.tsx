@@ -27,7 +27,7 @@ export default async function ProductPage({ params, searchParams }: { params: { 
       <ScoreCard data={data} />
       {data.reviewMode === "demo" && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          Demo verisi: arama API anahtarı (SERPAPI_KEY / GOOGLE_SEARCH_API_KEY) tanımlı değil ya da ulaşılamadı. Aşağıdaki yorumlar ve fiyatlar gerçek değil, örnek amaçlı deterministik üretilmiştir.
+          Yorum verisi alınamadı: arama anahtarı tanımlı değil ya da arama servislerine ulaşılamadı. Bu nedenle yorum skoru gösterilmiyor.
         </p>
       )}
       {data.reviews.length > 0 ? (

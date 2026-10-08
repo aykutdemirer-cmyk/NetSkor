@@ -50,11 +50,17 @@ export function extractIngredients(text: string): string | undefined {
   return m?.[1].trim();
 }
 
-const quantityOf = (name: string) => name.match(/(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|lt|l)\b/i)?.[0];
+// "3-6 kg" bebek ağırlık aralığıdır, paket gramajı değil: aralık içindeki değer atlanır
+const quantityOf = (name: string) => name.match(/(?<!\d\s?[-–]\s?)(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|lt|l)\b/i)?.[0];
 
 export interface TraceStep { query: string; via: string; count: number; titles: string[] }
 
 interface Candidate { title: string; link: string; trusted: boolean; prices: number[]; image?: string }
+
+// Türkçe ürün kelimeleri (harf kuralı güvenilmez: Kazakça da "Ç" kullanıyor)
+const TR_WORDS = /(?:^|\s)(?:bebek|bezi|adet|paket|numara|krem\w*|şampuan\w*|sabun\w*|temizl\w*|deterjan\w*|çikolata\w*|bisküvi\w*|ürün\w*|fiyat\w*|bantlı|kutu)(?=\s|$)/i;
+
+const hostOf = (link: string) => { try { return new URL(link).hostname; } catch { return ""; } };
 
 const jaccard = (a: string, b: string) => {
   const x = tokens(a), y = tokens(b);
@@ -99,7 +105,10 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
   }
 
   const trusted = pool.filter((c) => c.trusted);
-  const chosen = trusted.length > 0 ? trusted : agree(pool.map((c) => c.title)) ? pool : [];
+  let chosen = trusted.length > 0 ? trusted : agree(pool.map((c) => c.title)) ? pool : [];
+  // Türkçe kaynakları (.tr alan adı ya da Türkçe harfli başlık) tercih et: yabancı mağaza başlıkları ürün adını bozuyor
+  const turkish = chosen.filter((c) => /\.tr$/.test(hostOf(c.link)) || TR_WORDS.test(c.title));
+  if (turkish.length > 0) chosen = turkish;
   const name = consensusTitle(chosen.map((c) => c.title));
   if (!name || name.length < 3) {
     console.error(`[webLookup] ürün çıkarılamadı barkod=${barcode} aday=${pool.length} güvenilir=${trusted.length}`);

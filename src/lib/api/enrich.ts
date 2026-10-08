@@ -12,6 +12,19 @@ export async function enrichWithReviews(base: ProductAnalysis, f?: typeof fetch,
   const ra = analyzeReviews(p.category, found.reviews);
   const price = estimatePrice(p.category, [...found.prices, ...extraPrices], parseQuantity(base.ageGroup)); // ageGroup: OFF "quantity" alanı
 
+  // Demo (anahtar yok / arama başarısız): gerçek ürünlerde uydurma yorum, uyarı ve skor göstermeyiz
+  if (found.mode === "demo") {
+    const realPrice = estimatePrice(p.category, extraPrices, parseQuantity(base.ageGroup));
+    return {
+      ...base,
+      product: { ...base.product, priceTry: realPrice?.medianPrice ?? 0 },
+      inputs: { ...base.inputs, valueForMoney: realPrice?.priceScore ?? base.inputs.valueForMoney },
+      reviews: [],
+      reviewMode: "demo",
+      estimated: { ingredients: base.estimated?.ingredients ?? false, reviews: true, value: !realPrice },
+    };
+  }
+
   return {
     ...base,
     product: { ...base.product, priceTry: price?.medianPrice ?? 0 },
