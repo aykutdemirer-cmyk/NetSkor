@@ -13,13 +13,15 @@
     "deploy:prod": "npm run check && npx --yes vercel@62 deploy --prod"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
     "framer-motion": "^11.11.0",
     "lucide-react": "^0.454.0",
     "next": "^14.2.15",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^20.16.0",

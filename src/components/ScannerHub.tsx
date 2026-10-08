@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, ImagePlus, Search, ScanLine } from "lucide-react";
 import type { Category } from "@/types";
 import RecentProducts from "@/components/RecentProducts";
+import { analyzeImage, NONE_MESSAGE } from "@/lib/imageScan";
 import BarcodeScannerModal from "@/components/BarcodeScannerModal";
 import { BABY_DEMOS, CATEGORIES, DEFAULT_CATEGORY } from "@/data/categories";
 
@@ -20,8 +21,21 @@ export default function ScannerHub({ onProductSelect }: Props) {
   const [category, setCategory] = useState<Category>(DEFAULT_CATEGORY);
   const [query, setQuery] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [imageStatus, setImageStatus] = useState<{ text: string; busy: boolean } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = CATEGORIES.find((c) => c.id === category)!;
+
+  // Yüklenen ambalaj fotoğrafı: barkod -> ürün sayfası; barkod yoksa ürün tanıma -> arama sonuçları
+  const onImage = async (file?: File) => {
+    if (!file) return;
+    setImageStatus({ text: "Görsel işleniyor…", busy: true });
+    const r = await analyzeImage(file, (text) => setImageStatus({ text, busy: true }));
+    if (fileRef.current) fileRef.current.value = ""; // aynı dosya tekrar seçilebilsin
+    if (r.kind === "none") return setImageStatus({ text: NONE_MESSAGE[r.reason], busy: false });
+    setImageStatus(null);
+    setQuery(r.value);
+    onProductSelect(r.value, r.kind === "query" && r.category ? r.category : category);
+  };
 
   const submit = (value: string) => {
     const v = value.trim();
@@ -95,12 +109,20 @@ export default function ScannerHub({ onProductSelect }: Props) {
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 py-3 text-sm font-semibold"
+          disabled={imageStatus?.busy}
+          className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 py-3 text-sm font-semibold disabled:opacity-50"
         >
           <ImagePlus className="h-4 w-4" /> Görsel Yükle
         </button>
-        <input ref={fileRef} type="file" accept="image/*" hidden />
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onImage(e.target.files?.[0])} />
       </div>
+
+      {imageStatus && (
+        <p role="status" aria-live="polite" className={`rounded-xl px-3 py-2 text-sm ${imageStatus.busy ? "bg-cyan-500/10 text-cyan-300" : "bg-amber-500/10 text-amber-300"}`}>
+          {imageStatus.text}
+        </p>
+      )}
+      <p className="-mt-3 text-[11px] text-slate-600">Barkod okunamazsa görsel, ürünü tanımak için yapay zekâ servisine gönderilir.</p>
 
       <form
         onSubmit={(e) => {

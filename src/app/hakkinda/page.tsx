@@ -38,6 +38,10 @@ export default function AboutPage() {
         <p>Yorum özetlerinde kargo, satıcı ve teslimat cümleleri skora katılmaz. Sosyal medya, markanın kendi sitesi ve yalnızca şikayet toplayan siteler dışlanır.</p>
       </Section>
 
+      <Section title="Görsel yükleme ve gizlilik">
+        <p>Yüklenen fotoğraftaki barkod önce cihazında okunur; bu aşamada görsel hiçbir yere gönderilmez. Barkod okunamazsa ve görselden tanıma açıksa, ürünü tanımak için görsel yapay zekâ servisine (Anthropic) gönderilir ve saklanmaz. Okunan barkod rakamları sağlama toplamıyla doğrulanır.</p>
+      </Section>
+
       <Section title="Sorumluluk reddi">
         <p>NetSkor bilgilendirme amaçlıdır; tıbbi, hukuki veya profesyonel tavsiye değildir. Özellikle bebek, çocuk ve alerjisi olan kişiler için karar vermeden önce ürün ambalajındaki içerik listesini okuyun ve bir sağlık uzmanına danışın. Veriler eksik, güncel olmayan veya hatalı olabilir; doğruluğu garanti edilmez. Markalar veya ürünler hakkında hüküm verilmez; skor yalnızca yukarıdaki yöntemle üretilmiş otomatik bir özettir.</p>
       </Section>

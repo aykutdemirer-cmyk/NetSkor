@@ -16,6 +16,8 @@ Vercel → Project → Settings → Environment Variables (Production + Preview)
 | `GOOGLE_SEARCH_API_KEY` + `GOOGLE_SEARCH_CX` | hayır* | Google Custom Search (yedek) |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | hayır | kalıcı önbellek ve katkı formu |
 
+| `ANTHROPIC_API_KEY` | hayır | görselden ürün tanıma (ücretli); yoksa yalnızca görseldeki barkod okunur |
+
 \* Sağlayıcılar **sırayla** denenir (SerpAPI → Serper → Brave → Google). Biri kota/hata verirse
 sıradakine geçilir; 429/401/403 alan sağlayıcı 10-60 dk devre dışı kalır. Hiçbiri yoksa **demo verisi** gösterilir.
 CLI ile: `npx vercel env add SERPAPI_KEY production`
