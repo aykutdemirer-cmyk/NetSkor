@@ -1,4 +1,7 @@
 import ScoreCard from "@/components/ScoreCard";
+import IngredientBlock from "@/components/IngredientBlock";
+import UnitCostCard from "@/components/UnitCostCard";
+import AgeSatisfaction from "@/components/AgeSatisfaction";
 import ReviewList from "@/components/ReviewList";
 import ProductNotFound from "@/components/ProductNotFound";
 import { enrichProduct } from "@/lib/api/enrichProduct";
@@ -16,6 +19,7 @@ export default async function ProductPage({ params, searchParams }: { params: { 
   const data = await enrichProduct(barcode, category); // mock -> API -> null
   if (!data) return <ProductNotFound query={barcode} />;
 
+  const sample = !data.productSource && !data.reviewMode; // elle yazılmış demo ürün: yeni bloklar "Örnek veri" etiketli
   const { total, band } = calculateScore(data.product.category, data.inputs);
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8">
@@ -25,6 +29,9 @@ export default async function ProductPage({ params, searchParams }: { params: { 
         />
       )}
       <ScoreCard data={data} />
+      <IngredientBlock highlights={data.inciHighlights} ingredients={data.product.ingredients} contentBasis={data.contentBasis} sample={sample} />
+      <UnitCostCard pricePerUnit={data.pricePerUnit} categoryAveragePrice={data.categoryAveragePrice} sample={sample} />
+      <AgeSatisfaction rows={data.ageGroupSatisfaction} sample={sample} />
       {data.reviewMode === "demo" && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
           Yorum verisi alınamadı: arama anahtarı tanımlı değil ya da arama servislerine ulaşılamadı. Bu nedenle yorum skoru gösterilmiyor.

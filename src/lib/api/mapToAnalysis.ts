@@ -1,4 +1,5 @@
 import { claimScore, isNonInci, scanClaims } from "@/lib/scoring/claimScanner";
+import { buildChecklist, buildHighlights } from "@/lib/scoring/inciHighlights";
 import { analyzeIngredients } from "@/lib/scoring/ingredientAnalyzer";
 import type { Category, ProductAnalysis } from "@/types";
 import type { LookupResult } from "./productLookup";
@@ -15,7 +16,10 @@ export function mapToAnalysis(r: LookupResult, category: Category): ProductAnaly
   // Gıdada Nutri-Score içerik skoruyla harmanlanır
   const ingredientSafety = claims.length > 0 ? claimScore(claims.length) : !a.analyzed ? NEUTRAL : nutri !== undefined && category === "food" ? Math.round((a.ingredientScore + nutri) / 2) : a.ingredientScore;
 
+  const list = (r.ingredientsText ?? "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
   return {
+    inciHighlights: a.analyzed ? buildHighlights(category, list) : [],
+    featureChecklist: buildChecklist(category, r.ingredientsText, claims),
     product: {
       barcode: r.barcode, name: r.name, brand: r.brand || "Bilinmeyen Marka", category, imageUrl: r.imageUrl,
       ingredients: (r.ingredientsText ?? "").split(/[,;]/).map((s) => s.trim()).filter(Boolean),

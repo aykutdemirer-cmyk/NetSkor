@@ -81,3 +81,13 @@ describe("Molfix uçtan uca", () => {
     expect(none.experience).toBe(false); // yorum yoksa deneyim skoru da yok
   });
 });
+
+describe("birim maliyet yapısı (gerçek ürün)", () => {
+  it("Molfix: adet bazlı pricePerUnit ve kategori ortalaması (bez)", async () => {
+    const r = await enrichProduct("8690536821129", "food", serp, { SERPAPI_KEY: "k" });
+    expect(r?.pricePerUnit?.unit).toBe("adet");
+    expect(r?.pricePerUnit?.label).toBe("bez");
+    expect(r!.pricePerUnit!.value).toBeCloseTo(4.21, 1);
+    expect(r?.categoryAveragePrice).toBe(5);
+  });
+});
