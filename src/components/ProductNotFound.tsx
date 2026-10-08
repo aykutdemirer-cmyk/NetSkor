@@ -11,8 +11,7 @@ export default function ProductNotFound({ query }: { query: string }) {
           <span className="font-mono text-slate-300">{query}</span> için kayıt yok. Elle katkıda bulunabilir ya da ürün adıyla arayabilirsin.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <a href={`https://world.openbeautyfacts.org/cgi/product.pl?type=add&code=${encodeURIComponent(query)}`} target="_blank" rel="noreferrer"
-            className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold">Katkıda Bulun</a>
+          <Link href={`/contribute?barcode=${encodeURIComponent(query)}`} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold">Ürünü Ekle</Link>
           <Link href="/" className="rounded-xl border border-slate-700 px-4 py-2 text-sm">← Yeni Ürün Tara</Link>
         </div>
       </div>

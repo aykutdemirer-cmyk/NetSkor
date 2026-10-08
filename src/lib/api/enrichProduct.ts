@@ -1,3 +1,5 @@
+import { cacheGet, cacheSet } from "@/lib/cache";
+import { getContribution } from "@/lib/contrib";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
 import { webLookupProduct } from "./webLookup";
 import { detectCategory } from "./productSearch";
@@ -15,10 +17,23 @@ export async function enrichProduct(
 ): Promise<ProductAnalysis | null> {
   const mock = MOCK_PRODUCTS[barcode];
   if (mock) return mock;
-  // Open Facts'te yoksa barkodu internette ara (SerpAPI anahtarı gerekir)
-  const found = (await lookupProduct(barcode, category, f)) ?? (await webLookupProduct(barcode, category, f, env));
+
+  // Önce önbellek: aynı ürün tekrar açıldığında arama kotası harcanmaz
+  const key = `analysis:v1:${barcode}:${category}`;
+  const cached = await cacheGet<ProductAnalysis>(key, env, f);
+  if (cached) return cached;
+  const result = await analyze(barcode, category, f, env);
+  // Demo veri ve bulunamayanlar saklanmaz: anahtar eklenince veya ürün kaydedilince güncel sonuç görünsün
+  if (result && result.reviewMode !== "demo") await cacheSet(key, result, 7 * 24 * 3600, env, f);
+  return result;
+}
+
+async function analyze(barcode: string, category: Category, f?: typeof fetch, env?: Record<string, string | undefined>): Promise<ProductAnalysis | null> {
+  // Sıra: kullanıcı katkısı -> Open Facts -> internet araması (SerpAPI anahtarı gerekir)
+  const found =
+    (await getContribution(barcode, env, f)) ?? (await lookupProduct(barcode, category, f)) ?? (await webLookupProduct(barcode, category, f, env));
   if (!found) return null;
   // Kullanıcının seçtiği kategori yanlış olabilir (ör. bebek seçiliyken Nutella): kaynak ve etiketlerden belirle
-  const detected = detectCategory(found.source, found.categoryTags ?? [], `${found.name} ${found.brand}`, category);
+  const detected = found.category ?? detectCategory(found.source === "user" ? "web" : found.source, found.categoryTags ?? [], `${found.name} ${found.brand}`, category);
   return enrichWithReviews(mapToAnalysis(found, detected), f, env, "prices" in found ? (found as { prices: number[] }).prices : []);
 }

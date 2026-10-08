@@ -1,9 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { _clearMemoryCache } from "@/lib/cache";
 import { compareProducts } from "./compare";
 import { enrichProduct } from "./api/enrichProduct";
 import { analyzeReviews } from "./scoring/reviewAnalyzer";
 import { MOCK_PRODUCTS as M } from "@/data/mockProducts";
 import type { Review } from "@/types";
+
+beforeEach(() => _clearMemoryCache());
 
 const obf = (code: string, name: string, brands: string, ingredients: string, quantity: string) =>
   new Response(JSON.stringify({ status: 1, product: { code, product_name: name, brands, ingredients_text: ingredients, quantity } }));

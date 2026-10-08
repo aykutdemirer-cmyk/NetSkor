@@ -2,6 +2,7 @@ import ScoreCard from "@/components/ScoreCard";
 import ReviewList from "@/components/ReviewList";
 import ProductNotFound from "@/components/ProductNotFound";
 import { enrichProduct } from "@/lib/api/enrichProduct";
+import { getConfidence } from "@/lib/confidence";
 import HistoryRecorder from "@/components/HistoryRecorder";
 import { calculateScore } from "@/lib/scoring";
 import type { Category } from "@/types";
@@ -18,9 +19,11 @@ export default async function ProductPage({ params, searchParams }: { params: { 
   const { total, band } = calculateScore(data.product.category, data.inputs);
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8">
-      <HistoryRecorder
-        item={{ barcode: data.product.barcode, name: data.product.name, brand: data.product.brand, imageUrl: data.product.imageUrl, category: data.product.category, score: total, band }}
-      />
+      {getConfidence(data).showScore && (
+        <HistoryRecorder
+          item={{ barcode: data.product.barcode, name: data.product.name, brand: data.product.brand, imageUrl: data.product.imageUrl, category: data.product.category, score: total, band }}
+        />
+      )}
       <ScoreCard data={data} />
       {data.reviewMode === "demo" && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">

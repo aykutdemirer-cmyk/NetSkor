@@ -53,7 +53,7 @@ export interface ProductAnalysis {
   pros: string[];
   cons: string[];
   inputs: ScoreInputs;
-  productSource?: "openfacts" | "web"; // web: ad/içerik internet aramasından çıkarıldı, doğrulanmadı
+  productSource?: "openfacts" | "web" | "user"; // web: ad/içerik internet aramasından çıkarıldı, doğrulanmadı
   reviewMode?: "live" | "demo"; // demo: yorum/fiyat deterministik örnek veri
   estimated?: { reviews: boolean; value: boolean; ingredients: boolean }; // gerçek veri yoksa nötr değer kullanıldı
   noSting: number; // göz yakmama (0-100)

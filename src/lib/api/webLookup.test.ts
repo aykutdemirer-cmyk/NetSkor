@@ -1,6 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { _clearMemoryCache } from "@/lib/cache";
 import { cleanTitle, consensusTitle, extractIngredients, webLookupProduct } from "./webLookup";
 import { enrichProduct } from "./enrichProduct";
+
+beforeEach(() => _clearMemoryCache());
 
 describe("webLookup yardımcıları", () => {
   it("başlık temizleme", () => {

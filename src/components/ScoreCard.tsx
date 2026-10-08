@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FlaskConical, MessageSquare, Zap, ThumbsUp, ThumbsDown, Users } from "lucide-react";
 import { calculateScore } from "@/lib/scoring";
+import { getConfidence, LEVEL_LABEL, LEVEL_STYLE, type Level } from "@/lib/confidence";
 import type { ProductAnalysis, ScoreBand } from "@/types";
 
 const BAND: Record<ScoreBand, { text: string; bg: string; ring: string; label: string }> = {
@@ -9,12 +10,16 @@ const BAND: Record<ScoreBand, { text: string; bg: string; ring: string; label: s
   red: { text: "text-red-400", bg: "bg-red-500", ring: "border-red-500", label: "Riskli" },
 };
 
-const Bar = ({ icon, label, value, estimated }: { icon: React.ReactNode; label: string; value: number; estimated?: boolean }) => {
-  if (estimated)
+const Chip = ({ level }: { level: Level }) => (
+  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${LEVEL_STYLE[level]}`}>{LEVEL_LABEL[level]}</span>
+);
+
+const Bar = ({ icon, label, value, level }: { icon: React.ReactNode; label: string; value: number; level: Level }) => {
+  if (level === "none")
     return (
       <div>
         <div className="mb-1 flex justify-between text-sm text-slate-500">
-          <span className="flex items-center gap-2">{icon} {label}</span><span>Veri yok</span>
+          <span className="flex items-center gap-2">{icon} {label}</span><Chip level="none" />
         </div>
         <div className="h-2 rounded-full bg-slate-800" />
       </div>
@@ -23,7 +28,7 @@ const Bar = ({ icon, label, value, estimated }: { icon: React.ReactNode; label: 
   return (
     <div>
       <div className="mb-1 flex justify-between text-sm">
-        <span className="flex items-center gap-2">{icon} {label}</span>
+        <span className="flex items-center gap-2">{icon} {label} <Chip level={level} /></span>
         <span className={`font-semibold ${b.text}`}>{value}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-800">
@@ -37,6 +42,7 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
   const { product: p } = data;
   const score = calculateScore(p.category, data.inputs);
   const band = BAND[score.band];
+  const conf = getConfidence(data);
   const est = data.estimated;
   const missing = [est?.ingredients && "içerik", est?.reviews && "yorum", est?.value && "fiyat"].filter(Boolean);
   const reviewPart = score.parts.find((x) => x.key === "reviews")!.score; // skor motoruyla aynı değer
@@ -52,13 +58,26 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
           <h1 className="text-lg font-bold leading-tight">{p.name}</h1>
           <p className="text-xs text-slate-500">Barkod: {p.barcode}{p.priceTry > 0 && ` · ~${Math.round(p.priceTry)} TL`}</p>
         </div>
-        <div className={`flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 ${band.ring}`}>
-          <span className={`text-2xl font-extrabold ${band.text}`}>{score.total}</span>
-          <span className="text-[10px] text-slate-400">/100</span>
-        </div>
+        {conf.showScore ? (
+          <div className={`flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 ${band.ring}`}>
+            <span className={`text-2xl font-extrabold ${band.text}`}>{score.total}</span>
+            <span className="text-[10px] text-slate-400">/100</span>
+          </div>
+        ) : (
+          <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 border-slate-700">
+            <span className="text-2xl font-extrabold text-slate-500">—</span>
+          </div>
+        )}
       </div>
-      <p className={`text-sm font-semibold ${band.text}`}>● {band.label}</p>
+      {conf.showScore ? (
+        <p className={`text-sm font-semibold ${band.text}`}>● {band.label}</p>
+      ) : (
+        <p className="text-sm font-semibold text-slate-400">● Yeterli veri yok: içerik bilgisi bulunamadığı için skor verilmedi</p>
+      )}
 
+      {data.productSource === "user" && (
+        <p className="rounded-xl bg-sky-500/10 px-3 py-2 text-xs text-sky-300">Bu ürün kullanıcı katkısıyla eklendi; bilgiler doğrulanmadı.</p>
+      )}
       {data.productSource === "web" && (
         <p className="rounded-xl bg-sky-500/10 px-3 py-2 text-xs text-sky-300">
           Ürün adı ve içeriği internet aramasından otomatik çıkarıldı; doğruluğunu ambalajdan kontrol edin.
@@ -70,9 +89,9 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
         </p>
       )}
       <div className="flex flex-col gap-3">
-        <Bar icon={<FlaskConical className="h-4 w-4" />} label="İçerik Güvenliği" value={data.inputs.ingredientSafety} estimated={data.estimated?.ingredients} />
-        <Bar icon={<MessageSquare className="h-4 w-4" />} label="Kullanıcı Yorum Skoru" value={reviewPart} estimated={data.estimated?.reviews} />
-        <Bar icon={<Zap className="h-4 w-4" />} label="Fiyat & Performans" value={data.inputs.valueForMoney} estimated={data.estimated?.value} />
+        <Bar icon={<FlaskConical className="h-4 w-4" />} label="İçerik Güvenliği" value={data.inputs.ingredientSafety} level={conf.ingredients} />
+        <Bar icon={<MessageSquare className="h-4 w-4" />} label="Kullanıcı Yorum Skoru" value={reviewPart} level={conf.reviews} />
+        <Bar icon={<Zap className="h-4 w-4" />} label="Fiyat & Performans" value={data.inputs.valueForMoney} level={conf.price} />
       </div>
 
       <div className="rounded-2xl bg-slate-800/60 p-4">
@@ -92,6 +111,11 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
           {data.cons.map((t) => <li key={t} className="flex gap-2"><ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />{t}</li>)}
         </ul>}
       </div>
+
+      <p className="text-[11px] leading-relaxed text-slate-500">
+        Bilgilendirme amaçlıdır; tıbbi tavsiye değildir.{p.category === "baby" && " Bebek ürünlerinde karar vermeden önce ambalajı okuyun ve çocuk doktorunuza danışın."}{" "}
+        <Link href="/hakkinda" className="underline">Yöntem ve sorumluluk reddi</Link>
+      </p>
 
       <div className="flex flex-wrap gap-3">
         <Link href="/" className="rounded-xl border border-slate-700 px-4 py-2 text-sm">← Yeni Ürün Tara</Link>
