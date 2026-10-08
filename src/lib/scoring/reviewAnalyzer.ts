@@ -44,7 +44,7 @@ const PROS: Rule[] = [
   { label: "Fiyat/performans", pattern: /fiyat\W{0,3}performans|uygun\s+fiyat|ekonomik|uzun\s+gidiyor/ },
   { label: "Göz yakmaz", pattern: /goz\w*\s+(yakmiyor|yakmadi|yakmaz)/ },
   { label: "Lezzetli", pattern: /lezzetli|tadi\s+(cok\s+)?(guzel|harika)/ },
-  { label: "Etkili", pattern: /etkili|ise\s+yaradi|memnun\s+kaldim|fark\s+ettim/ },
+  { label: "Etkili", pattern: /etkili|ise\s+yaradi|memnun\s+kaldim/ },
 ];
 
 const NEGATION = /^.{0,25}?(yapmadi|yapmiyor|olmadi|yok\b|degil)/;
@@ -58,9 +58,12 @@ function hits(rules: Rule[], text: string): Rule[] {
 }
 
 /** Puanı olmayan snippet'lar için sözlükten tahmini yıldız (1-5). */
+const GENERIC_NEGATIVE = /sikayet|memnun\s+degil|berbat|rezalet|hayal\s+kirikligi|iade|sorun|hata|degisiklik|kotu/;
+
 export function inferRating(text: string, category: Category): 1 | 2 | 3 | 4 | 5 {
   const t = normTr(text);
-  const score = 3 + hits(PROS, t).length - 1.5 * hits(COMPLAINTS[category], t).length;
+  const neg = GENERIC_NEGATIVE.test(t) ? 1 : 0;
+  const score = 3 + hits(PROS, t).length - 1.5 * hits(COMPLAINTS[category], t).length - 1.5 * neg;
   return Math.min(5, Math.max(1, Math.round(score))) as 1 | 2 | 3 | 4 | 5;
 }
 

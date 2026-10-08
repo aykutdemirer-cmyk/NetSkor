@@ -2,10 +2,10 @@ import type { Category } from "@/types";
 
 // Kategori referansı: 100 g/ml başına ortalama TL ve ortalama paket fiyatı (TL)
 const REF: Record<Category, { per100: number; pack: number }> = {
-  baby: { per100: 45, pack: 250 },
-  cosmetics: { per100: 90, pack: 400 },
-  food: { per100: 20, pack: 60 },
-  cleaning: { per100: 15, pack: 120 },
+  baby: { per100: 60, pack: 300 },
+  cosmetics: { per100: 120, pack: 450 },
+  food: { per100: 35, pack: 100 },
+  cleaning: { per100: 25, pack: 150 },
 };
 
 export interface PriceEstimate { priceScore: number; medianPrice: number; basis: "unit" | "pack" }
@@ -34,12 +34,12 @@ export function extractPrices(text: string): number[] {
   return out;
 }
 
-/** 100 = referansın yarısı veya daha ucuz, 70 = referans fiyat, 10 = referansın 2 katı. */
+/** 100 = referansın yarısı veya daha ucuz, 80 = referans fiyat, 40 = referansın 2 katı (referanslar kaba tahmindir). */
 export function estimatePrice(category: Category, prices: number[], amount: number | null): PriceEstimate | null {
   if (prices.length === 0) return null;
   const med = median(prices);
   const ref = REF[category];
   const ratio = amount ? med / amount / (ref.per100 / 100) : med / ref.pack;
-  const priceScore = Math.round(Math.min(100, Math.max(0, 100 - 60 * (ratio - 0.5))));
+  const priceScore = Math.round(Math.min(100, Math.max(0, 100 - 40 * (ratio - 0.5))));
   return { priceScore, medianPrice: Math.round(med * 100) / 100, basis: amount ? "unit" : "pack" };
 }

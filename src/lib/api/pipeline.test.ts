@@ -74,3 +74,20 @@ describe("enrich", () => {
     expect(calculateScore("baby", e.inputs).total).toBeGreaterThan(0);
   });
 });
+
+describe("canlı arama kalitesi", () => {
+  const input = { productName: "Nutella", brand: "Ferrero", category: "food" as const };
+  it("sikayetvar.com sonuçları elenir; yalnızca şikayet sitesiyse demo'ya düşer", async () => {
+    const mk = (link: string) => vi.fn(async () => new Response(JSON.stringify({ organic_results: [{ title: "x", link, snippet: "Tarihi geçmiş ürün" }] }))) as unknown as typeof fetch;
+    expect((await searchReviews(input, "1", mk("https://www.sikayetvar.com/nutella"), { SERPAPI_KEY: "k" })).mode).toBe("demo");
+    expect((await searchReviews(input, "1", mk("https://www.trendyol.com/p/1"), { SERPAPI_KEY: "k" })).mode).toBe("live");
+  });
+  it("tahmini yıldız: şikayet metni yüksek puan almaz", async () => {
+    const { inferRating } = await import("@/lib/scoring/reviewAnalyzer");
+    expect(inferRating("Son zamanlarda tadında değişiklik fark ettim, lezzetli değil", "food")).toBeLessThanOrEqual(2);
+    expect(inferRating("Çok lezzetli, tadı harika", "food")).toBeGreaterThanOrEqual(4);
+  });
+  it("fiyat: Nutella 400 g ~180 TL artık 0 değil", () => {
+    expect(estimatePrice("food", [180], 400)!.priceScore).toBeGreaterThan(20);
+  });
+});

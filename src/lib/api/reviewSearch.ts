@@ -15,6 +15,10 @@ const PLATFORMS: { source: ReviewSource; host: string; template: (q: string) => 
   { source: "amazon_tr", host: "amazon.com.tr", template: (q) => `site:amazon.com.tr ${q} yorumlar` },
 ];
 
+// Yalnızca şikayet toplayan siteler skoru olumsuza yanlılaştırır; dışarıda bırakılır
+const BLOCKED_HOSTS = ["sikayetvar.com"];
+const blocked = (link: string) => { try { return BLOCKED_HOSTS.some((h) => new URL(link).hostname.endsWith(h)); } catch { return true; } };
+
 const sourceOf = (link: string): ReviewSource => {
   try {
     const h = new URL(link).hostname;
@@ -98,7 +102,7 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
     const results = await Promise.all(
       PLATFORMS.map((p) => (serpKey ? serp(p.template(q), serpKey, f) : cse(p.template(q), gKey!, cx!, f))),
     );
-    const hits = results.flat().filter((h) => h.snippet);
+    const hits = results.flat().filter((h) => h.snippet && h.link && !blocked(h.link));
     const reviews: Review[] = hits.map((h, i) => ({
       id: `live-${barcode}-${i}`, source: sourceOf(h.link), author: new URL(h.link).hostname.replace(/^www\./, ""),
       verifiedBuyer: false, rating: (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category)) as 1 | 2 | 3 | 4 | 5,
