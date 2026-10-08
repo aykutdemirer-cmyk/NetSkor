@@ -16,3 +16,16 @@ describe("checkHealth", () => {
     expect(down).toMatchObject({ status: "degraded", checks: { search: "google" } });
   });
 });
+
+describe("checkHealth deep", () => {
+  it("SerpAPI anahtarı: geçerli / geçersiz / ulaşılamaz", async () => {
+    const mk = (status: number | "throw") => F(async (u) => {
+      if (u.includes("serpapi.com")) { if (status === "throw") throw new Error("x"); return new Response("{}", { status }); }
+      return new Response("{}");
+    });
+    expect((await checkHealth(mk(200), { SERPAPI_KEY: "k" }, true)).checks.serpapiKey).toBe("valid");
+    expect((await checkHealth(mk(401), { SERPAPI_KEY: "k" }, true)).checks.serpapiKey).toBe("invalid");
+    expect((await checkHealth(mk("throw"), { SERPAPI_KEY: "k" }, true)).checks.serpapiKey).toBe("unreachable");
+    expect((await checkHealth(mk(200), { SERPAPI_KEY: "k" }, false)).checks.serpapiKey).toBeUndefined();
+  });
+});

@@ -41,7 +41,7 @@ export function relevance(query: string, c: Pick<Candidate, "name" | "brand">): 
   return hit + (normTr(`${c.brand} ${c.name}`).startsWith(normTr(query).trim()) ? 0.25 : 0);
 }
 
-function detectCategory(source: Source, tags: string[], text: string, selected: Category): Category {
+export function detectCategory(source: Source, tags: string[], text: string, selected: Category): Category {
   const hay = `${tags.join(" ")} ${normTr(text)}`;
   if (/baby|infant|bebek|diaper|nappy|\bbez\b/.test(hay)) return "baby";
   if (/clean|deterjan|detergent|sabun|soap|temizlik|hygiene/.test(hay)) return "cleaning";

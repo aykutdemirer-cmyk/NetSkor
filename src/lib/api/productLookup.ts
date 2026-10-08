@@ -8,6 +8,7 @@ export interface LookupResult {
   ingredientsText?: string;
   analysisTags: string[]; // ingredients_analysis_tags + additives_tags
   nutriscore?: string;
+  categoryTags?: string[];
   quantity?: string;
   source: "openfoodfacts" | "openbeautyfacts";
 }
@@ -20,7 +21,7 @@ type Source = keyof typeof HOSTS;
 
 const FIELDS = [
   "code", "product_name", "product_name_tr", "brands", "image_url", "image_front_url",
-  "ingredients_text", "ingredients_text_tr", "ingredients_analysis_tags", "additives_tags", "nutriscore_grade", "quantity",
+  "ingredients_text", "ingredients_text_tr", "ingredients_analysis_tags", "additives_tags", "nutriscore_grade", "quantity", "categories_tags",
 ].join(",");
 
 type Fetcher = typeof fetch;
@@ -45,6 +46,7 @@ async function query(source: Source, barcode: string, f: Fetcher): Promise<Looku
       analysisTags: [...(p.ingredients_analysis_tags ?? []), ...(p.additives_tags ?? [])],
       nutriscore: p.nutriscore_grade,
       quantity: p.quantity,
+      categoryTags: p.categories_tags ?? [],
       source,
     };
   } catch {

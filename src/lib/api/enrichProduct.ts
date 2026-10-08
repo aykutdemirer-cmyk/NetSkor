@@ -1,4 +1,5 @@
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
+import { detectCategory } from "./productSearch";
 import { lookupProduct } from "./productLookup";
 import { mapToAnalysis } from "./mapToAnalysis";
 import { enrichWithReviews } from "./enrich";
@@ -15,5 +16,7 @@ export async function enrichProduct(
   if (mock) return mock;
   const found = await lookupProduct(barcode, category, f);
   if (!found) return null;
-  return enrichWithReviews(mapToAnalysis(found, category), f, env);
+  // Kullanıcının seçtiği kategori yanlış olabilir (ör. bebek seçiliyken Nutella): kaynak ve etiketlerden belirle
+  const detected = detectCategory(found.source, found.categoryTags ?? [], `${found.name} ${found.brand}`, category);
+  return enrichWithReviews(mapToAnalysis(found, detected), f, env);
 }

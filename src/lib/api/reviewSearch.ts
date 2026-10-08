@@ -106,7 +106,9 @@ export async function searchReviews(input: SearchInput, barcode: string, f: Fetc
     }));
     if (reviews.length === 0) return demoReviews(input, barcode);
     return { mode: "live", reviews, prices: hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`)) };
-  } catch {
-    return demoReviews(input, barcode); // ağ/kota hatasında çökme yok
+  } catch (e) {
+    // Vercel Logs'ta sebebi görmek için (anahtar mesajda yer almaz); kullanıcıya demo'ya düşülür
+    console.error("[reviewSearch] canlı arama başarısız, demo veriye düşüldü:", e instanceof Error ? e.message : e);
+    return demoReviews(input, barcode);
   }
 }

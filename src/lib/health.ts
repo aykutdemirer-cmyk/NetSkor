@@ -7,7 +7,8 @@ export interface HealthReport {
   checks: {
     openfoodfacts: boolean;
     openbeautyfacts: boolean;
-    search: "serpapi" | "google" | "demo"; // yapılandırma; kota harcamamak için canlı çağrı yok
+    search: "serpapi" | "google" | "demo"; // yapılandırma
+    serpapiKey?: "valid" | "invalid" | "unreachable"; // yalnızca ?deep=1 (kota harcamayan account API)
   };
 }
 
@@ -25,9 +26,20 @@ async function ping(host: string, f: Fetcher): Promise<boolean> {
   }
 }
 
-export async function checkHealth(f: Fetcher = fetch, env: Env = process.env): Promise<HealthReport> {
+async function checkSerpKey(key: string, f: Fetcher): Promise<"valid" | "invalid" | "unreachable"> {
+  try {
+    const res = await f(`https://serpapi.com/account.json?api_key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(4000), cache: "no-store" });
+    return res.ok ? "valid" : res.status === 401 || res.status === 403 ? "invalid" : "unreachable";
+  } catch {
+    return "unreachable";
+  }
+}
+
+export async function checkHealth(f: Fetcher = fetch, env: Env = process.env, deep = false): Promise<HealthReport> {
   const [off, obf] = await Promise.all([ping("https://world.openfoodfacts.org", f), ping("https://world.openbeautyfacts.org", f)]);
   const search = env.SERPAPI_KEY ? "serpapi" : env.GOOGLE_SEARCH_API_KEY && env.GOOGLE_SEARCH_CX ? "google" : "demo";
   // En az bir ürün kaynağı ayakta ise uygulama kullanılabilir; aksi halde mock'a düşer
-  return { status: off || obf ? "ok" : "degraded", time: new Date().toISOString(), checks: { openfoodfacts: off, openbeautyfacts: obf, search } };
+  const checks: HealthReport["checks"] = { openfoodfacts: off, openbeautyfacts: obf, search };
+  if (deep && env.SERPAPI_KEY) checks.serpapiKey = await checkSerpKey(env.SERPAPI_KEY, f);
+  return { status: off || obf ? "ok" : "degraded", time: new Date().toISOString(), checks };
 }

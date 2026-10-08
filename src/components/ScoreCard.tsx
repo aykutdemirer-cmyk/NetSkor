@@ -37,6 +37,8 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
   const { product: p } = data;
   const score = calculateScore(p.category, data.inputs);
   const band = BAND[score.band];
+  const est = data.estimated;
+  const missing = [est?.ingredients && "içerik", est?.reviews && "yorum", est?.value && "fiyat"].filter(Boolean);
   const reviewPart = score.parts.find((x) => x.key === "reviews")!.score; // skor motoruyla aynı değer
 
   return (
@@ -57,9 +59,9 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
       </div>
       <p className={`text-sm font-semibold ${band.text}`}>● {band.label}</p>
 
-      {data.estimated && (
+      {missing.length > 0 && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          Skor tahminidir: {[data.estimated.ingredients && "içerik", data.estimated.reviews && "yorum", data.estimated.value && "fiyat"].filter(Boolean).join(", ")} verisi bulunamadı ve nötr değer (70) kullanıldı.
+          Skor tahminidir: {missing.join(", ")} verisi bulunamadı ve nötr değer (70) kullanıldı.
         </p>
       )}
       <div className="flex flex-col gap-3">
