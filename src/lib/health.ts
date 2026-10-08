@@ -1,3 +1,5 @@
+import { configuredProviders, type ProviderId } from "@/lib/api/searchProviders";
+
 type Fetcher = typeof fetch;
 type Env = Record<string, string | undefined>;
 
@@ -7,7 +9,8 @@ export interface HealthReport {
   checks: {
     openfoodfacts: boolean;
     openbeautyfacts: boolean;
-    search: "serpapi" | "google" | "demo"; // yapılandırma
+    search: ProviderId | "demo"; // zincirdeki ilk (birincil) sağlayıcı
+    searchProviders: ProviderId[]; // tanımlı yedek zinciri, denenme sırasıyla
     serpapiKey?: "valid" | "invalid" | "unreachable"; // yalnızca ?deep=1 (kota harcamayan account API)
   };
 }
@@ -37,9 +40,10 @@ async function checkSerpKey(key: string, f: Fetcher): Promise<"valid" | "invalid
 
 export async function checkHealth(f: Fetcher = fetch, env: Env = process.env, deep = false): Promise<HealthReport> {
   const [off, obf] = await Promise.all([ping("https://world.openfoodfacts.org", f), ping("https://world.openbeautyfacts.org", f)]);
-  const search = env.SERPAPI_KEY ? "serpapi" : env.GOOGLE_SEARCH_API_KEY && env.GOOGLE_SEARCH_CX ? "google" : "demo";
+  const providers = configuredProviders(env);
+  const search = providers[0] ?? "demo";
   // En az bir ürün kaynağı ayakta ise uygulama kullanılabilir; aksi halde mock'a düşer
-  const checks: HealthReport["checks"] = { openfoodfacts: off, openbeautyfacts: obf, search };
+  const checks: HealthReport["checks"] = { openfoodfacts: off, openbeautyfacts: obf, search, searchProviders: providers };
   if (deep && env.SERPAPI_KEY) checks.serpapiKey = await checkSerpKey(env.SERPAPI_KEY, f);
   return { status: off || obf ? "ok" : "degraded", time: new Date().toISOString(), checks };
 }

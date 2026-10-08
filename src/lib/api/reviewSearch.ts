@@ -1,10 +1,10 @@
+import { searchWeb, type WebHit } from "./searchProviders";
 import { extractPrices } from "@/lib/scoring/priceEstimator";
 import { inferRating } from "@/lib/scoring/reviewAnalyzer";
 import type { Category, Review, ReviewSource } from "@/types";
 
 export interface SearchInput { productName: string; brand: string; category: Category }
 export interface SearchOutput { mode: "live" | "demo"; reviews: Review[]; prices: number[] }
-interface Hit { title: string; snippet: string; link: string; rating?: number }
 type Fetcher = typeof fetch;
 type Env = Record<string, string | undefined>;
 
@@ -25,28 +25,6 @@ const sourceOf = (link: string): ReviewSource => {
     return PLATFORMS.find((p) => p.source !== "google" && h.includes(p.host))?.source ?? "google";
   } catch { return "google"; }
 };
-
-async function serp(q: string, key: string, f: Fetcher): Promise<Hit[]> {
-  const url = `https://serpapi.com/search.json?engine=google&hl=tr&gl=tr&num=5&q=${encodeURIComponent(q)}&api_key=${key}`;
-  const res = await f(url, { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`serpapi ${res.status}`);
-  const j = await res.json();
-  return (j.organic_results ?? []).map((r: any) => ({
-    title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "",
-    rating: r.rich_snippet?.top?.detected_extensions?.rating,
-  }));
-}
-
-async function cse(q: string, key: string, cx: string, f: Fetcher): Promise<Hit[]> {
-  const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&hl=tr&num=5&q=${encodeURIComponent(q)}`;
-  const res = await f(url, { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`cse ${res.status}`);
-  const j = await res.json();
-  return (j.items ?? []).map((r: any) => ({
-    title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "",
-    rating: Number(r.pagemap?.aggregaterating?.[0]?.ratingvalue) || undefined,
-  }));
-}
 
 // --- Deterministik demo üreteci (anahtar yok / ağ hatası) ---
 const hash = (s: string) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
@@ -94,25 +72,17 @@ export function demoReviews(input: SearchInput, barcode: string): SearchOutput {
 }
 
 export async function searchReviews(input: SearchInput, barcode: string, f: Fetcher = fetch, env: Env = process.env): Promise<SearchOutput> {
-  const serpKey = env.SERPAPI_KEY, gKey = env.GOOGLE_SEARCH_API_KEY, cx = env.GOOGLE_SEARCH_CX;
-  if (!serpKey && !(gKey && cx)) return demoReviews(input, barcode);
+  const q = `${input.brand} ${input.productName}`.trim();
+  // 4 platform sorgusu; her biri kendi sağlayıcı zincirini kullanır (kota biterse yedeğe geçer)
+  const results = await Promise.all(PLATFORMS.map((p) => searchWeb(p.template(q), env, f)));
+  if (results.every((r) => r === null)) return demoReviews(input, barcode); // anahtar yok ya da tüm sağlayıcılar başarısız
 
-  try {
-    const q = `${input.brand} ${input.productName}`.trim();
-    const results = await Promise.all(
-      PLATFORMS.map((p) => (serpKey ? serp(p.template(q), serpKey, f) : cse(p.template(q), gKey!, cx!, f))),
-    );
-    const hits = results.flat().filter((h) => h.snippet && h.link && !blocked(h.link));
-    const reviews: Review[] = hits.map((h, i) => ({
-      id: `live-${barcode}-${i}`, source: sourceOf(h.link), author: new URL(h.link).hostname.replace(/^www\./, ""),
-      verifiedBuyer: false, rating: (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category)) as 1 | 2 | 3 | 4 | 5,
-      text: h.snippet, flags: [],
-    }));
-    if (reviews.length === 0) return demoReviews(input, barcode);
-    return { mode: "live", reviews, prices: hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`)) };
-  } catch (e) {
-    // Vercel Logs'ta sebebi görmek için (anahtar mesajda yer almaz); kullanıcıya demo'ya düşülür
-    console.error("[reviewSearch] canlı arama başarısız, demo veriye düşüldü:", e instanceof Error ? e.message : e);
-    return demoReviews(input, barcode);
-  }
+  const hits: WebHit[] = results.flatMap((r) => r?.hits ?? []).filter((h) => h.snippet && h.link && !blocked(h.link));
+  const reviews: Review[] = hits.map((h, i) => ({
+    id: `live-${barcode}-${i}`, source: sourceOf(h.link), author: new URL(h.link).hostname.replace(/^www\./, ""),
+    verifiedBuyer: false, rating: (h.rating ? Math.min(5, Math.max(1, Math.round(h.rating))) : inferRating(h.snippet, input.category)) as 1 | 2 | 3 | 4 | 5,
+    text: h.snippet, flags: [],
+  }));
+  if (reviews.length === 0) return demoReviews(input, barcode);
+  return { mode: "live", reviews, prices: hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`)) };
 }

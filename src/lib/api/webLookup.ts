@@ -1,4 +1,6 @@
 import type { Category } from "@/types";
+import { searchWeb } from "./searchProviders";
+import { extractPrices } from "@/lib/scoring/priceEstimator";
 import type { LookupResult } from "./productLookup";
 
 type Fetcher = typeof fetch;
@@ -49,38 +51,50 @@ export function extractIngredients(text: string): string | undefined {
 
 const quantityOf = (name: string) => name.match(/(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|lt|l)\b/i)?.[0];
 
-/** Open Facts'te bulunamayan barkodu internet aramasıyla (SerpAPI) çözer. Anahtar yoksa/hata olursa null. */
+/** Open Facts'te bulunamayan barkodu internet aramasıyla çözer. Önce SerpAPI Shopping (görsel+fiyat), olmazsa genel arama zinciri. */
 export async function webLookupProduct(barcode: string, _category: Category, f: Fetcher = fetch, env: Env = process.env): Promise<(LookupResult & { prices: number[] }) | null> {
+  if (!/^\d{8,14}$/.test(barcode)) return null;
+
+  let titles: string[] = [];
+  let image: string | undefined;
+  let prices: number[] = [];
+
   const key = env.SERPAPI_KEY;
-  if (!key || !/^\d{8,14}$/.test(barcode)) return null;
-  try {
-    const shop = await serp({ engine: "google_shopping", q: barcode }, key, f);
-    let items = (shop.shopping_results ?? []).filter((r) => r.title);
-    if (items.length === 0) items = ((await serp({ engine: "google", q: `"${barcode}"` }, key, f)).organic_results ?? []).filter((r) => r.title);
-
-    const name = consensusTitle(items.map((r) => cleanTitle(r.title!)));
-    if (!name || name.length < 3) return null;
-
-    // İçerik listesi: ayrı bir arama (en iyi çaba)
-    let ingredientsText: string | undefined;
+  if (key) {
     try {
-      const ing = await serp({ engine: "google", q: `${name} içindekiler` }, key, f);
-      ingredientsText = (ing.organic_results ?? []).map((r) => extractIngredients(r.snippet ?? "")).find(Boolean);
-    } catch { /* içerik yoksa "veri yok" gösterilir */ }
-
-    return {
-      barcode,
-      name,
-      brand: name.split(" ")[0], // başlıktan tahmin; doğrulanmadı
-      imageUrl: items.find((r) => r.thumbnail)?.thumbnail,
-      ingredientsText,
-      analysisTags: [],
-      quantity: quantityOf(name),
-      source: "web",
-      prices: items.map((r) => r.extracted_price).filter((n): n is number => typeof n === "number"),
-    };
-  } catch (e) {
-    console.error("[webLookup] başarısız:", e instanceof Error ? e.message : e);
-    return null;
+      const items = ((await serp({ engine: "google_shopping", q: barcode }, key, f)).shopping_results ?? []).filter((r) => r.title);
+      titles = items.map((r) => cleanTitle(r.title!));
+      image = items.find((r) => r.thumbnail)?.thumbnail;
+      prices = items.map((r) => r.extracted_price).filter((n): n is number => typeof n === "number");
+    } catch (e) {
+      console.error("[webLookup] shopping başarısız:", e instanceof Error ? e.message : e);
+    }
   }
+
+  if (titles.length === 0) {
+    const r = await searchWeb(`"${barcode}" ürün`, env, f); // yedek zincir: Serper / Brave / Google CSE
+    if (!r) return null;
+    const hits = r.hits.filter((h) => h.title);
+    titles = hits.map((h) => cleanTitle(h.title));
+    prices = hits.flatMap((h) => extractPrices(`${h.title} ${h.snippet}`));
+  }
+
+  const name = consensusTitle(titles);
+  if (!name || name.length < 3) return null;
+
+  // İçerik listesi: ayrı bir arama (en iyi çaba)
+  const ing = await searchWeb(`${name} içindekiler`, env, f);
+  const ingredientsText = ing?.hits.map((h) => extractIngredients(h.snippet)).find(Boolean);
+
+  return {
+    barcode,
+    name,
+    brand: name.split(" ")[0], // başlıktan tahmin; doğrulanmadı
+    imageUrl: image,
+    ingredientsText,
+    analysisTags: [],
+    quantity: quantityOf(name),
+    source: "web",
+    prices,
+  };
 }
