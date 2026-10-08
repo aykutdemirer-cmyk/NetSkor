@@ -26,11 +26,16 @@ export default function AboutPage() {
       </Section>
 
       <Section title="Güven etiketleri">
-        <p><b>Kaynaklı veri:</b> açık veri tabanından geldi. <b>Doğrulanmamış:</b> otomatik veya kullanıcı katkısı. <b>Arama özeti:</b> arama sonucu özetlerinden tahmin. <b>Örnek veri:</b> gerçek değil, gösterim amaçlı. <b>Veri yok:</b> bulunamadı; skor hesabında nötr değer kullanılır ve içerik verisi yoksa skor hiç gösterilmez.</p>
+        <p><b>Kaynaklı veri:</b> açık veri tabanından geldi. <b>Üretici beyanı:</b> içerik listesi yok; başlık/açıklamadaki "parfümsüz, klor içermez" gibi beyanlardan tahmin (en çok 85 puan). <b>Doğrulanmamış:</b> otomatik veya kullanıcı katkısı. <b>Arama özeti:</b> arama sonucu özetlerinden tahmin. <b>Örnek veri:</b> gerçek değil, gösterim amaçlı. <b>Veri yok:</b> bulunamadı; skor hesabında nötr değer kullanılır ve içerik verisi yoksa skor hiç gösterilmez.</p>
       </Section>
 
       <Section title="Skor nasıl hesaplanır?">
         <p>Bebek ürünlerinde içerik %40, ebeveyn yorumları ve şikayet oranı %35, onay ve doğallık %15, fiyat %10. Kozmetikte içerik %35, memnuniyet %40, fiyat %25. Gıdada beğeni %45, içerik temizliği %30, fiyat %25. Temizlik ürünlerinde içerik %40, memnuniyet %35, fiyat %25 kullanılır. İçerik puanı; paraben, SLS/SLES, parfüm, fenoksietanol, palm yağı, E kodlu katkılar gibi bilinen risk işaretlerinin varlığına göre kural tabanlı düşürülür. Bir içeriğin bulunması zarar verdiği anlamına gelmez; bireysel hassasiyetler değişir.</p>
+      </Section>
+
+      <Section title="İçerik listesi olmayan ürünler (bebek bezi, ıslak mendil)">
+        <p>Bu ürünlerde klasik içerik (INCI) listesi bulunmayabilir. İçerik skoru yalnızca üreticinin beyanlarına dayanır ve doğrulanmamıştır. Beyan da yoksa ve yorum ile fiyat verisi varsa, her zaman sarı gösterilen ve en çok 89 olan "Kullanıcı Deneyimi Skoru" verilir; bu durumda içerik beyanı sınırlı olduğu açıkça belirtilir.</p>
+        <p>Yorum özetlerinde kargo, satıcı ve teslimat cümleleri skora katılmaz. Sosyal medya, markanın kendi sitesi ve yalnızca şikayet toplayan siteler dışlanır.</p>
       </Section>
 
       <Section title="Sorumluluk reddi">

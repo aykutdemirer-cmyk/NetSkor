@@ -1,3 +1,4 @@
+import { normTr } from "@/lib/text";
 import type { Category } from "@/types";
 
 // Kategori referansı: 100 g/ml başına ortalama TL ve ortalama paket fiyatı (TL)
@@ -15,13 +16,50 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
-/** "500 ml", "2 x 125 g", "1,5 L" -> gram/ml cinsinden miktar */
-export function parseQuantity(q?: string): number | null {
+/** "500 ml", "2 x 125 g", "1,5 L" -> gram/ml cinsinden miktar ve birim */
+export function parseQuantityFull(q?: string): { amount: number; unit: "g" | "ml" } | null {
   if (!q) return null;
-  const m = q.toLowerCase().replace(",", ".").match(/(?:(\d+)\s*x\s*)?(\d+(?:\.\d+)?)\s*(kg|g|gr|l|lt|ml|cl)\b/);
+  const m = q.toLowerCase().replace(",", ".").match(/(?:(\d+)\s*x\s*)?(\d+(?:\.\d+)?)\s*(kg|g|gr|l|lt|ml|cl)(?![a-zçğıöşü])/);
   if (!m) return null;
   const mult = { kg: 1000, g: 1, gr: 1, l: 1000, lt: 1000, ml: 1, cl: 10 }[m[3]]!;
-  return (m[1] ? Number(m[1]) : 1) * Number(m[2]) * mult;
+  return { amount: (m[1] ? Number(m[1]) : 1) * Number(m[2]) * mult, unit: ["l", "lt", "ml", "cl"].includes(m[3]) ? "ml" : "g" };
+}
+export const parseQuantity = (q?: string): number | null => parseQuantityFull(q)?.amount ?? null;
+
+/** "36Lı", "36'lı", "36 lı", "36 adet" -> adet sayısı (en az 4; "2'li paket" gibi çoklu paketler yok sayılır) */
+export function parseCount(text?: string): number | null {
+  if (!text) return null;
+  const m = normTr(text).match(/(\d{1,4})\s*['’`´]?\s*(?:li|lu|adet|ad)(?![a-z0-9])/);
+  const n = m ? Number(m[1]) : 0;
+  return n >= 4 ? n : null;
+}
+
+// Adet başına referans fiyatlar (TL) — kaba tahmin, piyasaya göre güncellenmeli
+const UNIT_REF: { kind: "bez" | "mendil"; test: RegExp; ref: number }[] = [
+  { kind: "bez", test: /\b(bez|bezi|diaper|nappy)\b/, ref: 5 },
+  { kind: "mendil", test: /\b(mendil|wipes?)\b/, ref: 0.7 },
+];
+export const unitKind = (name: string) => UNIT_REF.find((u) => u.test.test(normTr(name)));
+export const fmtTl = (n: number) => n.toFixed(2).replace(".", ",").replace(/,00$/, "");
+
+export interface UnitPriceEstimate extends PriceEstimate { unitText: string }
+
+const scoreOf = (ratio: number) => Math.round(Math.min(100, Math.max(0, 100 - 40 * (ratio - 0.5))));
+
+/** Adet başına fiyat: bez/mendil için referansa göre skor ve "4,2 TL / bez" metni. */
+export function estimateUnitPrice(prices: number[], count: number, kind: "bez" | "mendil"): UnitPriceEstimate | null {
+  const ref = UNIT_REF.find((u) => u.kind === kind)!.ref;
+  const expected = ref * count;
+  const usable = prices.filter((p) => p >= expected * 0.2 && p <= expected * 5);
+  if (usable.length === 0) return null;
+  const med = median(usable), unit = med / count;
+  return { priceScore: scoreOf(unit / ref), medianPrice: Math.round(med * 100) / 100, basis: "unit", unitText: `${fmtTl(unit)} TL / ${kind}` };
+}
+
+/** Gramaj/hacim biliniyorsa 100 g/ml başına fiyat metni. */
+export function perHundredText(price: number, q?: string): string | undefined {
+  const full = parseQuantityFull(q);
+  return full ? `${fmtTl((price / full.amount) * 100)} TL / 100 ${full.unit}` : undefined;
 }
 
 /** Fiyat snippet'larından ("249,90 TL", "₺151,50") sayıları çıkarır. */
@@ -45,6 +83,6 @@ export function estimatePrice(category: Category, prices: number[], amount: numb
   if (usable.length === 0) return null; // güvenilir fiyat yok: "Veri yok" gösterilir, 0 puan verilmez
   const med = median(usable);
   const ratio = med / expected;
-  const priceScore = Math.round(Math.min(100, Math.max(0, 100 - 40 * (ratio - 0.5))));
+  const priceScore = scoreOf(ratio);
   return { priceScore, medianPrice: Math.round(med * 100) / 100, basis: amount ? "unit" : "pack" };
 }

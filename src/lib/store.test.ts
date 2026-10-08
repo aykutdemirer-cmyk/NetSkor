@@ -82,7 +82,7 @@ describe("enrichProduct önbellek", () => {
 
 describe("güven etiketleri", () => {
   it("mock: içerik kaynaklı, yorum/fiyat örnek; skor gösterilir", () => {
-    expect(getConfidence(MOCK_PRODUCTS["5011091104752"])).toEqual({ ingredients: "high", reviews: "sample", price: "sample", showScore: true });
+    expect(getConfidence(MOCK_PRODUCTS["5011091104752"])).toEqual({ ingredients: "high", reviews: "sample", price: "sample", showScore: true, experience: false });
   });
   it("içerik yoksa skor gösterilmez; web kaynağı doğrulanmamış", () => {
     const none = mapToAnalysis({ barcode: "1", name: "X", brand: "", analysisTags: [], source: "openbeautyfacts" }, "baby");

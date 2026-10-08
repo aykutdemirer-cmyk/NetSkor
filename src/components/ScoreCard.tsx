@@ -14,7 +14,7 @@ const Chip = ({ level }: { level: Level }) => (
   <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${LEVEL_STYLE[level]}`}>{LEVEL_LABEL[level]}</span>
 );
 
-const Bar = ({ icon, label, value, level }: { icon: React.ReactNode; label: string; value: number; level: Level }) => {
+const Bar = ({ icon, label, value, level, note }: { icon: React.ReactNode; label: string; value: number; level: Level; note?: string }) => {
   if (level === "none")
     return (
       <div>
@@ -34,6 +34,7 @@ const Bar = ({ icon, label, value, level }: { icon: React.ReactNode; label: stri
       <div className="h-2 overflow-hidden rounded-full bg-slate-800">
         <div className={`h-full rounded-full ${b.bg}`} style={{ width: `${value}%` }} />
       </div>
+      {note && <p className="mt-1 text-[11px] text-slate-500">≈ {note}</p>}
     </div>
   );
 };
@@ -43,6 +44,9 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
   const score = calculateScore(p.category, data.inputs);
   const band = BAND[score.band];
   const conf = getConfidence(data);
+  // İçerik beyanı yoksa: yorum + fiyat parçalarının (skor motoru ağırlıklarıyla) ortalaması; en çok 89 ve her zaman sarı
+  const rev = score.parts.find((x) => x.key === "reviews")!, val = score.parts.find((x) => x.key === "value")!;
+  const ux = !conf.showScore && conf.experience ? Math.min(89, Math.round((rev.score * rev.weight + val.score * val.weight) / (rev.weight + val.weight))) : null;
   const est = data.estimated;
   const missing = [est?.ingredients && "içerik", est?.reviews && "yorum", est?.value && "fiyat"].filter(Boolean);
   const reviewPart = score.parts.find((x) => x.key === "reviews")!.score; // skor motoruyla aynı değer
@@ -63,6 +67,11 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
             <span className={`text-2xl font-extrabold ${band.text}`}>{score.total}</span>
             <span className="text-[10px] text-slate-400">/100</span>
           </div>
+        ) : ux !== null ? (
+          <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 border-amber-500" title="Kullanıcı deneyimi ağırlıklı skor">
+            <span className="text-2xl font-extrabold text-amber-400">{ux}</span>
+            <span className="text-[9px] leading-tight text-slate-400">kullanıcı deneyimi</span>
+          </div>
         ) : (
           <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 border-slate-700">
             <span className="text-2xl font-extrabold text-slate-500">—</span>
@@ -71,6 +80,8 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
       </div>
       {conf.showScore ? (
         <p className={`text-sm font-semibold ${band.text}`}>● {band.label}</p>
+      ) : ux !== null ? (
+        <p className="text-sm font-semibold text-amber-400">● Kullanıcı Deneyimi Skoru: İçerik beyanı sınırlı, skor kullanıcı deneyimine dayanır</p>
       ) : (
         <p className="text-sm font-semibold text-slate-400">● Yeterli veri yok: içerik bilgisi bulunamadığı için skor verilmedi</p>
       )}
@@ -83,6 +94,11 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
           Ürün adı ve içeriği internet aramasından otomatik çıkarıldı; doğruluğunu ambalajdan kontrol edin.
         </p>
       )}
+      {data.contentBasis === "claims" && (
+        <p className="rounded-xl bg-violet-500/10 px-3 py-2 text-xs text-violet-300">
+          Bu ürünün içerik (INCI) listesi bulunamadı. İçerik puanı üreticinin başlık/açıklamadaki beyanlarına ({data.claims?.join(", ")}) dayanır; doğrulanmamıştır.
+        </p>
+      )}
       {conf.showScore && missing.length > 0 && (
         <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
           Skor tahminidir: {missing.join(", ")} verisi bulunamadı ve nötr değer (70) kullanıldı.
@@ -91,7 +107,7 @@ export default function ScoreCard({ data }: { data: ProductAnalysis }) {
       <div className="flex flex-col gap-3">
         <Bar icon={<FlaskConical className="h-4 w-4" />} label="İçerik Güvenliği" value={data.inputs.ingredientSafety} level={conf.ingredients} />
         <Bar icon={<MessageSquare className="h-4 w-4" />} label="Kullanıcı Yorum Skoru" value={reviewPart} level={conf.reviews} />
-        <Bar icon={<Zap className="h-4 w-4" />} label="Fiyat & Performans" value={data.inputs.valueForMoney} level={conf.price} />
+        <Bar icon={<Zap className="h-4 w-4" />} label="Fiyat & Performans" value={data.inputs.valueForMoney} level={conf.price} note={data.unitPrice} />
       </div>
 
       <div className="rounded-2xl bg-slate-800/60 p-4">

@@ -55,7 +55,7 @@ const quantityOf = (name: string) => name.match(/(?<!\d\s?[-–]\s?)(\d+(?:[.,]\
 
 export interface TraceStep { query: string; via: string; count: number; titles: string[] }
 
-interface Candidate { title: string; link: string; trusted: boolean; prices: number[]; image?: string }
+interface Candidate { title: string; link: string; trusted: boolean; prices: number[]; image?: string; snippet?: string }
 
 // Türkçe ürün kelimeleri (harf kuralı güvenilmez: Kazakça da "Ç" kullanıyor)
 const TR_WORDS = /(?:^|\s)(?:bebek|bezi|adet|paket|numara|krem\w*|şampuan\w*|sabun\w*|temizl\w*|deterjan\w*|çikolata\w*|bisküvi\w*|ürün\w*|fiyat\w*|bantlı|kutu)(?=\s|$)/i;
@@ -97,7 +97,7 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
     const hits = r.hits.filter((h) => h.title);
     note(q, r.provider, hits.map((h) => h.title));
     hits.forEach((h) => add({
-      title: cleanTitle(h.title), link: h.link, image: h.image,
+      title: cleanTitle(h.title), link: h.link, image: h.image, snippet: h.snippet,
       trusted: `${h.title} ${h.snippet} ${h.link}`.includes(barcode),
       prices: extractPrices(`${h.title} ${h.snippet}`),
     }));
@@ -146,6 +146,7 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
     analysisTags: [],
     quantity: quantityOf(name),
     source: "web",
+    description: chosen.map((c) => `${c.title}. ${c.snippet ?? ""}`).join(" ").slice(0, 1500),
     prices,
   };
 }

@@ -9,6 +9,7 @@ export interface LookupResult {
   analysisTags: string[]; // ingredients_analysis_tags + additives_tags
   nutriscore?: string;
   categoryTags?: string[];
+  description?: string; // web aramasında ürün başlığı/özet metinleri (beyan taraması için)
   category?: Category; // yalnızca kullanıcı katkısında: katkıda bulunanın seçtiği kategori
   quantity?: string;
   source: "openfoodfacts" | "openbeautyfacts" | "web" | "user";

@@ -54,6 +54,7 @@ export interface ProductAnalysis {
   cons: string[];
   inputs: ScoreInputs;
   unitPrice?: string; // örn. "4,2 TL / bez"
+  contentBasis?: "inci" | "claims"; // claims: içerik skoru üretici beyanlarına dayanır
   claims?: string[]; // üretici beyanları (parfümsüz, klor içermez...)
   productSource?: "openfacts" | "web" | "user"; // web: ad/içerik internet aramasından çıkarıldı, doğrulanmadı
   reviewMode?: "live" | "demo"; // demo: yorum/fiyat deterministik örnek veri
