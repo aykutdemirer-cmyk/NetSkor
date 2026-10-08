@@ -19,7 +19,7 @@ export async function enrichProduct(
   if (mock) return mock;
 
   // Önce önbellek: aynı ürün tekrar açıldığında arama kotası harcanmaz
-  const key = `analysis:v1:${barcode}:${category}`;
+  const key = `analysis:v2:${barcode}:${category}`;
   const cached = await cacheGet<ProductAnalysis>(key, env, f);
   if (cached) return cached;
   const result = await analyze(barcode, category, f, env);

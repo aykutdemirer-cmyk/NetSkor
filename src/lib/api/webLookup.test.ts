@@ -20,15 +20,20 @@ describe("webLookup yardımcıları", () => {
   });
 });
 
+// SerpAPI sahte yanıtı: barkod sorgusunda sonuç metninde barkod geçer; shopping yalnızca ürün adıyla sorgulanır
 const serpMock = () => vi.fn(async (u: string) => {
   if (u.includes("serpapi.com")) {
     const url = new URL(u), engine = url.searchParams.get("engine"), q = url.searchParams.get("q") ?? "";
     if (engine === "google_shopping") return new Response(JSON.stringify({ shopping_results: [
       { title: "Sarelle Kakaolu Fındık Ezmesi 350 g - Migros", extracted_price: 120, thumbnail: "https://img/x.jpg" },
       { title: "Sarelle Kakaolu Fındık Ezmesi 350g | A101", extracted_price: 115 },
-      { title: "Sarelle Fındık Ezmesi Kakaolu 350 g Fiyatı", extracted_price: 125 },
+      { title: "GARNIER Micellar Makyaj Temizleme Suyu", extracted_price: 313, thumbnail: "https://img/garnier.jpg" }, // alakasız: filtrelenmeli
     ] }));
     if (q.includes("içindekiler")) return new Response(JSON.stringify({ organic_results: [{ snippet: "İçindekiler: Şeker, palm yağı, fındık, yağsız kakao, emülgatör. Saklama" }] }));
+    if (q.includes("8690000000099")) return new Response(JSON.stringify({ organic_results: [
+      { title: "Sarelle Kakaolu Fındık Ezmesi 350 g 8690000000099", link: "https://a.com/1", snippet: "Barkod: 8690000000099" },
+      { title: "Sarelle Kakaolu Fındık Ezmesi 350 g - Migros", link: "https://b.com/2", snippet: "EAN 8690000000099" },
+    ] }));
     return new Response(JSON.stringify({ organic_results: [{ title: "Yorum", link: "https://www.trendyol.com/p", snippet: "Güzel koku, uygun fiyat" }] }));
   }
   return new Response(JSON.stringify({ status: 0 })); // Open Facts: kayıt yok
@@ -44,7 +49,8 @@ describe("webLookupProduct", () => {
   it("ad, görsel, fiyat ve içerik çıkarılır", async () => {
     const r = await webLookupProduct("8690000000099", "food", serpMock(), { SERPAPI_KEY: "k" });
     expect(r).toMatchObject({ name: expect.stringContaining("Sarelle"), imageUrl: "https://img/x.jpg", source: "web", quantity: "350 g" });
-    expect(r!.prices).toEqual([120, 115, 125]);
+    expect(r!.name).not.toMatch(/\d{8,}/); // başlıktaki barkod temizlendi
+    expect(r!.prices).toEqual([120, 115]); // alakasız Garnier (313 TL) ve görseli alınmadı
     expect(r!.ingredientsText).toContain("palm yağı");
   });
   it("hata olursa null", async () => {
@@ -64,5 +70,24 @@ describe("enrichProduct web yedeği", () => {
   });
   it("anahtar yoksa null (bulunamadı kartı)", async () => {
     expect(await enrichProduct("8690000000099", "food", serpMock(), {})).toBeNull();
+  });
+});
+
+describe("regresyon: yanlış ürün (Garnier / diş fırçası görseli)", () => {
+  it("barkodla alakasız Shopping sonuçları ürün adı, görsel ve fiyat olarak kullanılmaz", async () => {
+    const f = vi.fn(async (u: string) => {
+      const url = new URL(u), engine = url.searchParams.get("engine"), q = url.searchParams.get("q") ?? "";
+      if (engine === "google_shopping") return new Response(JSON.stringify({ shopping_results: [{ title: "GARNIER Micellar Kusursuz Makyaj Temizleme Suyu", extracted_price: 313, thumbnail: "https://img/firca.jpg" }] }));
+      if (q.includes("içindekiler")) return new Response(JSON.stringify({ organic_results: [] }));
+      return new Response(JSON.stringify({ organic_results: [
+        { title: "Molfix Bebek Bezi Jumbo 2 Mini 36'lı 8690536821129", link: "https://www.toptantr.com/m", snippet: "doğal bambu" },
+        { title: "Molfix Bantlı Bebek Bezi 2 Numara 36 Adet Jumbo Paket", link: "https://www.asyasanalmarket.com/m", snippet: "Barkod : 8690536821129. Fiyat : ₺151,50" },
+      ] }));
+    }) as unknown as typeof fetch;
+    const r = await webLookupProduct("8690536821129", "baby", f, { SERPAPI_KEY: "k" });
+    expect(r?.name).toContain("Molfix");
+    expect(r?.name).not.toContain("GARNIER");
+    expect(r?.imageUrl).toBeUndefined(); // diş fırçası görseli gelmedi
+    expect(r?.prices).toEqual([151.5]);
   });
 });

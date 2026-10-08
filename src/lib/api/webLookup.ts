@@ -54,7 +54,7 @@ const quantityOf = (name: string) => name.match(/(\d+(?:[.,]\d+)?)\s?(kg|gr?|ml|
 
 export interface TraceStep { query: string; via: string; count: number; titles: string[] }
 
-interface Candidate { title: string; link: string; trusted: boolean; prices: number[] }
+interface Candidate { title: string; link: string; trusted: boolean; prices: number[]; image?: string }
 
 const jaccard = (a: string, b: string) => {
   const x = tokens(a), y = tokens(b);
@@ -71,7 +71,11 @@ function agree(titles: string[]): boolean {
   return sum / n >= 0.3;
 }
 
-/** Open Facts'te bulunamayan barkodu internet aramasıyla çözer. SerpAPI Shopping (güvenilir eşleşme), olmazsa genel arama zinciri. */
+/**
+ * Open Facts'te bulunamayan barkodu internet aramasıyla çözer.
+ * Ürün adı yalnızca sonuç metninde barkodun geçtiği kaynaklardan (ya da birbirini doğrulayan başlıklardan) belirlenir.
+ * Google Shopping barkodla birebir eşleşmediği için yalnızca ad bulunduktan sonra, ada benzerlik filtresiyle görsel/fiyat için kullanılır.
+ */
 export async function webLookupProduct(barcode: string, _category: Category, f: Fetcher = fetch, env: Env = process.env, trace?: TraceStep[]): Promise<(LookupResult & { prices: number[] }) | null> {
   if (!/^\d{8,14}$/.test(barcode)) return null;
 
@@ -79,29 +83,15 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
   const seen = new Set<string>();
   const add = (c: Candidate) => { const k = `${c.title}|${c.link}`; if (!seen.has(k)) { seen.add(k); pool.push(c); } };
   const note = (query: string, via: string, titles: string[]) => trace?.push({ query, via, count: titles.length, titles: titles.slice(0, 5) });
-  let image: string | undefined;
-
-  const key = env.SERPAPI_KEY;
-  if (key) {
-    try {
-      const items = ((await serp({ engine: "google_shopping", q: barcode }, key, f)).shopping_results ?? []).filter((r) => r.title);
-      note(barcode, "serpapi-shopping", items.map((r) => r.title!));
-      image = items.find((r) => r.thumbnail)?.thumbnail;
-      // Google Shopping GTIN ile eşleştirir; başlıkta barkod geçmese de güvenilir sayılır
-      items.forEach((r) => add({ title: cleanTitle(r.title!), link: "", trusted: true, prices: typeof r.extracted_price === "number" ? [r.extracted_price] : [] }));
-    } catch (e) {
-      console.error("[webLookup] shopping başarısız:", e instanceof Error ? e.message : e);
-    }
-  }
 
   // Genel arama: iki sorgu biçimi; sonuçta barkod geçiyorsa "doğrulanmış" sayılır
-  for (const q of pool.length ? [] : [barcode, `"${barcode}" barkod`]) {
-    const r = await searchWeb(q, env, f); // yedek zincir: Serper / Brave / Google CSE
+  for (const q of [barcode, `"${barcode}" barkod`]) {
+    const r = await searchWeb(q, env, f); // yedek zincir: SerpAPI / Serper / Brave / Google CSE
     if (!r) { note(q, "yok", []); break; }
     const hits = r.hits.filter((h) => h.title);
     note(q, r.provider, hits.map((h) => h.title));
     hits.forEach((h) => add({
-      title: cleanTitle(h.title), link: h.link,
+      title: cleanTitle(h.title), link: h.link, image: h.image,
       trusted: `${h.title} ${h.snippet} ${h.link}`.includes(barcode),
       prices: extractPrices(`${h.title} ${h.snippet}`),
     }));
@@ -114,6 +104,23 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
   if (!name || name.length < 3) {
     console.error(`[webLookup] ürün çıkarılamadı barkod=${barcode} aday=${pool.length} güvenilir=${trusted.length}`);
     return null;
+  }
+
+  let image = chosen.find((c) => c.image)?.image;
+  let prices = chosen.flatMap((c) => c.prices);
+
+  // Eksik görsel/fiyat için ürün adıyla Shopping; ada benzemeyen sonuçlar (başka ürünler) atılır
+  const key = env.SERPAPI_KEY;
+  if (key && (!image || prices.length === 0)) {
+    try {
+      const items = ((await serp({ engine: "google_shopping", q: name }, key, f)).shopping_results ?? []).filter((r) => r.title);
+      note(name, "serpapi-shopping", items.map((r) => r.title!));
+      const similar = items.filter((r) => jaccard(cleanTitle(r.title!), name) >= 0.35);
+      image ??= similar.find((r) => r.thumbnail)?.thumbnail;
+      if (prices.length === 0) prices = similar.map((r) => r.extracted_price).filter((n): n is number => typeof n === "number");
+    } catch (e) {
+      console.error("[webLookup] shopping başarısız:", e instanceof Error ? e.message : e);
+    }
   }
 
   // İçerik listesi: ayrı bir arama (en iyi çaba)
@@ -130,6 +137,6 @@ export async function webLookupProduct(barcode: string, _category: Category, f: 
     analysisTags: [],
     quantity: quantityOf(name),
     source: "web",
-    prices: chosen.flatMap((c) => c.prices),
+    prices,
   };
 }

@@ -1,6 +1,6 @@
 // Web arama sağlayıcıları ve yedek zinciri: SerpAPI -> Serper.dev -> Brave -> Google CSE.
 // Anahtarı tanımlı olanlar sırayla denenir; kota/yetki/ağ hatasında bir sonrakine geçilir.
-export interface WebHit { title: string; snippet: string; link: string; rating?: number }
+export interface WebHit { title: string; snippet: string; link: string; rating?: number; image?: string }
 export type ProviderId = "serpapi" | "serper" | "brave" | "google";
 
 type Env = Record<string, string | undefined>;
@@ -32,7 +32,7 @@ const RUNNERS: Record<ProviderId, (q: string, env: Env, f: Fetcher) => Promise<W
   async serpapi(q, env, f) {
     const url = `https://serpapi.com/search.json?engine=google&hl=tr&gl=tr&num=5&q=${encodeURIComponent(q)}&api_key=${env.SERPAPI_KEY}`;
     const j = await json("serpapi", await f(url, { signal: AbortSignal.timeout(T) }));
-    return (j.organic_results ?? []).map((r: any) => ({ title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "", rating: r.rich_snippet?.top?.detected_extensions?.rating }));
+    return (j.organic_results ?? []).map((r: any) => ({ title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "", rating: r.rich_snippet?.top?.detected_extensions?.rating, image: r.thumbnail }));
   },
   async serper(q, env, f) {
     const res = await f("https://google.serper.dev/search", {
@@ -42,18 +42,18 @@ const RUNNERS: Record<ProviderId, (q: string, env: Env, f: Fetcher) => Promise<W
       signal: AbortSignal.timeout(T),
     });
     const j = await json("serper", res);
-    return (j.organic ?? []).map((r: any) => ({ title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "", rating: r.rating }));
+    return (j.organic ?? []).map((r: any) => ({ title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "", rating: r.rating, image: r.imageUrl }));
   },
   async brave(q, env, f) {
     const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&country=tr&search_lang=tr&count=5`;
     const res = await f(url, { headers: { "X-Subscription-Token": env.BRAVE_SEARCH_API_KEY!, Accept: "application/json" }, signal: AbortSignal.timeout(T) });
     const j = await json("brave", res);
-    return (j.web?.results ?? []).map((r: any) => ({ title: r.title ?? "", snippet: String(r.description ?? "").replace(/<[^>]+>/g, ""), link: r.url ?? "" }));
+    return (j.web?.results ?? []).map((r: any) => ({ title: r.title ?? "", snippet: String(r.description ?? "").replace(/<[^>]+>/g, ""), link: r.url ?? "", image: r.thumbnail?.src }));
   },
   async google(q, env, f) {
     const url = `https://www.googleapis.com/customsearch/v1?key=${env.GOOGLE_SEARCH_API_KEY}&cx=${env.GOOGLE_SEARCH_CX}&hl=tr&num=5&q=${encodeURIComponent(q)}`;
     const j = await json("google", await f(url, { signal: AbortSignal.timeout(T) }));
-    return (j.items ?? []).map((r: any) => ({ title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "", rating: Number(r.pagemap?.aggregaterating?.[0]?.ratingvalue) || undefined }));
+    return (j.items ?? []).map((r: any) => ({ title: r.title ?? "", snippet: r.snippet ?? "", link: r.link ?? "", rating: Number(r.pagemap?.aggregaterating?.[0]?.ratingvalue) || undefined, image: r.pagemap?.cse_thumbnail?.[0]?.src }));
   },
 };
 
